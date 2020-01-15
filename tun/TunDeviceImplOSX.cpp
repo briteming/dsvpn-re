@@ -1,4 +1,5 @@
 #include "TunDeviceImpl.h"
+#include "../state/Context.h"
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -58,6 +59,16 @@ int tun_create(char if_name[16], const char *wanted_name)
         }
     }
     return -1;
+}
+
+bool tun_setup(Context* context)
+{
+    static const char *set_cmds[] =
+            {
+            "ifconfig $IF_NAME $LOCAL_TUN_IP $REMOTE_TUN_IP up",
+            "ifconfig $IF_NAME inet6 $LOCAL_TUN_IP6 $REMOTE_TUN_IP6 prefixlen 128 up",
+            nullptr
+            };
 }
 
 #endif

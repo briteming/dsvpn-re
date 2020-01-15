@@ -22,3 +22,14 @@ std::string Router::GetDefaultInterfaceName() {
     return NULL;
 #endif
 }
+
+bool Router::SetRoute(bool is_server) {
+
+
+}
+
+
+bool Router::UnSetRoute(bool is_server) {
+
+
+}

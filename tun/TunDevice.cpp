@@ -17,3 +17,7 @@ TUN_FD TunDevice::TunCreate(const char *wanted_name) {
     }
 }
 
+bool TunDevice::TunSetup(Context* context) {
+    return tun_setup(context);
+}
+

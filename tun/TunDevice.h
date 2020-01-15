@@ -8,6 +8,7 @@
 #define TUN_FD int
 #endif
 
+class Context;
 class TunDevice {
 public:
     /*
@@ -30,7 +31,7 @@ public:
      */
     TUN_FD TunSetMTU(int mtu);
 
-
+    bool TunSetup(Context* context);
 private:
     std::string tun_name;
     TUN_FD tun_fd;
