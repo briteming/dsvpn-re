@@ -21,7 +21,7 @@ public:
      * On BSD/Darwin this->tun_name will be set to the name of the tun device
      * On Windows // TODO
      */
-    TUN_FD TunCreate(const char *wanted_name = "dsvpn");
+    bool Create(const char *wanted_name = "dsvpn");
 
     /*
      * @Return -1 if the operation failed
@@ -29,9 +29,11 @@ public:
      *
      * set MTU for the tun device
      */
-    TUN_FD TunSetMTU(int mtu);
+    bool SetMTU(int mtu);
 
-    bool TunSetup(Context* context);
+    bool Setup(Context* context);
+
+    std::string GetTunName() const { return tun_name; }
 private:
     std::string tun_name;
     TUN_FD tun_fd;

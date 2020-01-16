@@ -5,7 +5,7 @@
 #include "TunDevice.h"
 #include "TunDeviceImpl.h"
 
-TUN_FD TunDevice::TunCreate(const char *wanted_name) {
+bool TunDevice::Create(const char *wanted_name) {
     char if_name[16];
     auto fd = tun_create(if_name, wanted_name);
     if (fd > 0) {
@@ -17,7 +17,7 @@ TUN_FD TunDevice::TunCreate(const char *wanted_name) {
     }
 }
 
-bool TunDevice::TunSetup(Context* context) {
+bool TunDevice::Setup(Context* context) {
     return tun_setup(context);
 }
 

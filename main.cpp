@@ -2,5 +2,5 @@
 
 int main() {
    auto context = Context::GetInstance();
-   context->Init();
+   auto res = context->Init();
 }
