@@ -4,7 +4,7 @@
 
 #include "Context.h"
 #include "../utils/YamlHelper.h"
-#include <vector>
+#include "../utils/Resolver.h"
 #include <string>
 #include "Constant.h"
 #include <boost/asio/ip/address.hpp>
@@ -57,6 +57,13 @@ bool Context::Init() {
         return false;
     }
     this->server_ip_or_name = res.value;
+
+
+    auto resolve_res = resolve_ip(this->server_ip_or_name, this->server_ip_resolved);
+    if (!resolve_res) {
+        printf("resolve_ip error\n");
+        return false;
+    }
 
     auto portRes = h.Parse<uint16_t>("server_port");
     if (res.error) {

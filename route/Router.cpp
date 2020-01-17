@@ -1,6 +1,8 @@
 #include "Router.h"
 #include "../utils/Shell.h"
 #include "../utils/Trim.h"
+#include "RouterImpl.h"
+
 std::string Router::GetDefaultGatewayIp() {
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
     defined(__DragonFly__) || defined(__NetBSD__)
@@ -23,13 +25,14 @@ std::string Router::GetDefaultInterfaceName() {
 #endif
 }
 
-bool Router::SetRoute(bool is_server) {
-
-
+bool Router::SetClientDefaultRoute(Context* context) {
+    return route_client_set_default(context);
 }
 
+bool Router::UnsetClientDefaultRoute(Context* context) {
+    return route_client_unset_default(context);
+}
 
-bool Router::UnSetRoute(bool is_server) {
-
+bool Router::SetServerRouteForNewClient(Context *context) {
 
 }
