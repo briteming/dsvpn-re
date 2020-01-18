@@ -7,7 +7,7 @@
 #include "../utils/Resolver.h"
 #include <string>
 #include "Constant.h"
-#include <boost/asio/ip/address.hpp>
+#include <boost/config.hpp>
 
 bool Context::Init() {
     YamlHelper h;
@@ -18,6 +18,11 @@ bool Context::Init() {
     }
 
     this->is_server = res.value == "true";
+
+    if (this->is_server && BOOST_PLATFORM != "linux") {
+        printf("should run server on linux\n");
+        return false;
+    }
 
     res = h.Parse<std::string>("tun.local_tun_ip");
     if (res.error || (!res.error && res.value == "auto")) {
@@ -50,12 +55,12 @@ bool Context::Init() {
         return false;
     }
 
-    boost::system::error_code ec;
-    boost::asio::ip::address::from_string( res.value, ec );
-    if (ec) {
-        printf("server_ip_or_name is not a valid domain or ip address\n");
-        return false;
-    }
+//    boost::system::error_code ec;
+//    boost::asio::ip::address::from_string( res.value, ec );
+//    if (ec) {
+//        printf("server_ip_or_name is not a valid domain or ip address\n");
+//        return false;
+//    }
     this->server_ip_or_name = res.value;
 
 
@@ -75,7 +80,7 @@ bool Context::Init() {
 
     res = h.Parse<std::string>("tun.if_name");
     if (res.error || (!res.error && res.value == "auto")) {
-        this->local_tun_ip = DEFAULT_TUN_IFNAME;
+        this->if_name = DEFAULT_TUN_IFNAME;
     }
     this->if_name = res.value;
 

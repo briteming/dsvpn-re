@@ -1,11 +1,13 @@
 #include "state/Context.h"
 #include <boost/asio/spawn.hpp>
-#include <boost/thread.hpp>
+#include "utils/IOWorker.h"
 
 int main() {
-
-    auto context = std::make_unique<Context>();
+    auto context = std::make_unique<Context>(IOWorker::GetInstance()->GetRandomContext());
     auto res = context->Init();
+    if (!res) {
+        return -1;
+    }
     auto& tun = context->TunDevice();
     tun.Spawn([&tun](boost::asio::yield_context yield){
         char read_buffer[1500];
@@ -15,13 +17,13 @@ int main() {
             printf("read %zu bytes\n", bytes_read);
         }
     });
-    boost::thread t([&context](){
-        context->Run();
-    });
-    t.detach();
 
     Router::SetClientDefaultRoute(context.get());
+
+    IOWorker::GetInstance()->AsyncRun();
+
     getchar();
     Router::UnsetClientDefaultRoute(context.get());
+    IOWorker::GetInstance()->Stop();
     getchar();
 }

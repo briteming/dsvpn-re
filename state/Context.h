@@ -8,7 +8,7 @@
 
 class Context {
 public:
-    Context() : tun_device(io_context), worker(boost::asio::make_work_guard(io_context)) {}
+    Context(boost::asio::io_context& io) : tun_device(io) {}
 
     bool Init();
 
@@ -23,7 +23,6 @@ public:
     auto& ServerIPOrName() const { return this->server_ip_or_name; }
     auto& ServerIPResolved() const { return this->server_ip_resolved; }
     auto& ServerPort() const { return this->server_port; }
-    void Run() { this->io_context.run(); }
 
 private:
     bool is_server;
@@ -36,10 +35,7 @@ private:
     std::string server_ip_resolved;
     uint16_t    server_port;
 
-    class boost::asio::io_context io_context;
-    class boost::asio::executor_work_guard<boost::asio::io_context::executor_type> worker;
     class TunDevice tun_device;
-
 };
 
 
