@@ -6,7 +6,7 @@
 #include "../utils/Singleton.h"
 #include <boost/asio/io_context.hpp>
 
-class Context : public Singleton<Context> {
+class Context {
 public:
     Context() : tun_device(io_context), worker(boost::asio::make_work_guard(io_context)) {}
 
