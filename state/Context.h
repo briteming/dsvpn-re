@@ -12,7 +12,7 @@ public:
 
     bool Init();
 
-    TunDevice& TunDevice() { return this->tun_device; }
+    TunDevice& GetTunDevice() { return this->tun_device; }
 
     auto& IsServer() const { return this->is_server; }
     auto& IfName() const { return this->if_name; }
@@ -35,7 +35,7 @@ private:
     std::string server_ip_resolved;
     uint16_t    server_port;
 
-    class TunDevice tun_device;
+    TunDevice tun_device;
 };
 
 

@@ -1,7 +1,8 @@
+#ifdef __APPLE__
+
 #include "TunDeviceImpl.h"
 #include "../state/Context.h"
 
-#ifdef __APPLE__
 #include <unistd.h>
 #include <cerrno>
 #include <sys/ioctl.h>
@@ -82,5 +83,4 @@ bool tun_setup(Context* context)
     shell.Run(ipv6Up);
     return true;
 }
-
 #endif

@@ -8,7 +8,7 @@ int main() {
     if (!res) {
         return -1;
     }
-    auto& tun = context->TunDevice();
+    auto& tun = context->GetTunDevice();
     tun.Spawn([&tun](boost::asio::yield_context yield){
         char read_buffer[1500];
         while(true) {

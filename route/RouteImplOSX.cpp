@@ -1,3 +1,4 @@
+#ifdef __APPLE__
 #include "RouterImpl.h"
 
 #include "Router.h"
@@ -61,3 +62,4 @@ bool route_server_add_client(Context* context, std::string client) {
 bool route_server_remove_client(Context* context) {
     return true;
 }
+#endif
