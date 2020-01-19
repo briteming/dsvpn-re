@@ -27,6 +27,17 @@ bool TunDevice::Setup(Context* context) {
     return tun_setup(context);
 }
 
+bool TunDevice::Close(Context* context) {
+    auto self(this->shared_from_this());
+    boost::asio::spawn(this->io_context, [self, this, context](boost::asio::yield_context yield) {
+        if (this->async_tasks_running > 0)
+        {
+            this->asio_fd->close();
+            tun_remove(context);
+        }
+    });
+}
+
 bool TunDevice::SetMTU(int mtu) {
     return false;
 }

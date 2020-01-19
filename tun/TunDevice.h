@@ -3,6 +3,8 @@
 #include <string>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/enable_shared_from_this.hpp>
+#include <atomic>
 
 #ifdef __WIN32
 #define TUN_FD HANDLE
@@ -16,7 +18,7 @@
 
 
 class Context;
-class TunDevice {
+class TunDevice : public boost::enable_shared_from_this<TunDevice> {
 public:
     TunDevice(boost::asio::io_context& io);
 
@@ -53,9 +55,16 @@ public:
     size_t Write(const boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield);
 
     template <class FunctionType>
-    void Spawn(FunctionType func) {
-        boost::asio::spawn(this->io_context, func);
+    void Spawn(FunctionType&& func) {
+        this->async_tasks_running++;
+        auto self(this->shared_from_this());
+        boost::asio::spawn(this->io_context, [self, this, func](boost::asio::yield_context yield) {
+            func(this, yield);
+            this->async_tasks_running--;
+        });
     }
+
+    bool Close(Context* context);
 
     [[nodiscard]] std::string GetTunName() const { return tun_name; }
 private:
@@ -63,6 +72,7 @@ private:
     TUN_FD tun_fd;
     boost::asio::io_context& io_context;
     std::unique_ptr<ASIO_FD> asio_fd;
+    std::atomic_int64_t async_tasks_running = 0;
 };
 
 

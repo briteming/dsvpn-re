@@ -10,8 +10,8 @@ public:
     /*
      * For Server
      */
-    static bool SetServerRouteForNewClient(Context* context);
-    static bool UnsetServerRouteForNewClient(Context* context);
+    static bool AddClient(Context* context);
+    static bool DeleteClient(Context* context);
 
 
     /*

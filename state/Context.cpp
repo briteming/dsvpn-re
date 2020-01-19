@@ -9,7 +9,12 @@
 #include "Constant.h"
 #include <boost/config.hpp>
 
-bool Context::Init() {
+Context::~Context() {
+    if (tun_device)
+        tun_device->Close(this);
+}
+
+bool Context::InitByFile() {
     YamlHelper h;
     auto res = h.Parse<std::string>("is_server");
     if (res.error) {
@@ -17,35 +22,35 @@ bool Context::Init() {
         return false;
     }
 
-    this->is_server = res.value == "true";
+    this->detail.is_server = res.value == "true";
 
-    if (this->is_server && BOOST_PLATFORM != "linux") {
+    if (this->detail.is_server && BOOST_PLATFORM != "linux") {
         printf("should run server on linux\n");
         return false;
     }
 
     res = h.Parse<std::string>("tun.local_tun_ip");
     if (res.error || (!res.error && res.value == "auto")) {
-        this->local_tun_ip = this->is_server ? DEFAULT_SERVER_IP : DEFAULT_CLIENT_IP;
+        this->detail.local_tun_ip = this->detail.is_server ? DEFAULT_SERVER_IP : DEFAULT_CLIENT_IP;
     }
 
     res = h.Parse<std::string>("tun.remote_tun_ip");
     if (res.error || (!res.error && res.value == "auto")) {
-        this->remote_tun_ip = this->is_server ? DEFAULT_CLIENT_IP : DEFAULT_SERVER_IP;
+        this->detail.remote_tun_ip = this->detail.is_server ? DEFAULT_CLIENT_IP : DEFAULT_SERVER_IP;
     }
 
     {
         char local_tun_ip6[40], remote_tun_ip6[40];
-        snprintf(local_tun_ip6, sizeof local_tun_ip6, "64:ff9b::%s", this->local_tun_ip.c_str());
-        snprintf(remote_tun_ip6, sizeof remote_tun_ip6, "64:ff9b::%s", this->remote_tun_ip.c_str());
+        snprintf(local_tun_ip6, sizeof local_tun_ip6, "64:ff9b::%s", this->detail.local_tun_ip.c_str());
+        snprintf(remote_tun_ip6, sizeof remote_tun_ip6, "64:ff9b::%s", this->detail.remote_tun_ip.c_str());
         res = h.Parse<std::string>("tun.local_tun_ip6");
         if (res.error || (!res.error && res.value == "auto")) {
-            this->local_tun_ip6 = this->is_server ? std::string(remote_tun_ip6) : std::string(local_tun_ip6);
+            this->detail.local_tun_ip6 = this->detail.is_server ? std::string(remote_tun_ip6) : std::string(local_tun_ip6);
         }
 
         res = h.Parse<std::string>("tun.remote_tun_ip6");
         if (res.error || (!res.error && res.value == "auto")) {
-            this->remote_tun_ip6 = this->is_server ? std::string(local_tun_ip6) : std::string(remote_tun_ip6);
+            this->detail.remote_tun_ip6 = this->detail.is_server ? std::string(local_tun_ip6) : std::string(remote_tun_ip6);
         }
     }
 
@@ -55,16 +60,9 @@ bool Context::Init() {
         return false;
     }
 
-//    boost::system::error_code ec;
-//    boost::asio::ip::address::from_string( res.value, ec );
-//    if (ec) {
-//        printf("server_ip_or_name is not a valid domain or ip address\n");
-//        return false;
-//    }
-    this->server_ip_or_name = res.value;
+    this->detail.server_ip_or_name = res.value;
 
-
-    auto resolve_res = resolve_ip(this->server_ip_or_name, this->server_ip_resolved);
+    auto resolve_res = resolve_ip(this->detail.server_ip_or_name, this->detail.server_ip_resolved);
     if (!resolve_res) {
         printf("resolve_ip error\n");
         return false;
@@ -75,22 +73,50 @@ bool Context::Init() {
         printf("server_port not set\n");
         return false;
     }
-    this->server_port = portRes.value;
+    this->detail.server_port = portRes.value;
 
 
     res = h.Parse<std::string>("tun.if_name");
     if (res.error || (!res.error && res.value == "auto")) {
-        this->if_name = DEFAULT_TUN_IFNAME;
+        this->detail.tun_if_name = DEFAULT_TUN_IFNAME;
     }
-    this->if_name = res.value;
+    this->detail.tun_if_name = res.value;
 
-    auto tunRes = this->tun_device.Create(this->if_name.c_str());
+    auto tunRes = this->tun_device->Create(this->detail.tun_if_name.c_str());
     if (!tunRes) {
         return false;
     }
-    this->if_name = tun_device.GetTunName();
+    this->detail.tun_if_name = tun_device->GetTunName();
 
-    tunRes = this->tun_device.Setup(this);
+    tunRes = this->tun_device->Setup(this);
+    if (!tunRes) {
+        return false;
+    }
+    return true;
+}
+
+bool Context::Init() {
+
+    if (this->detail.is_server && BOOST_PLATFORM != "linux") {
+        printf("should run server on linux\n");
+        return false;
+    }
+
+    this->detail.ext_if_name = Router::GetDefaultInterfaceName();
+    this->detail.gateway_ip = Router::GetDefaultGatewayIp();
+//    auto resolve_res = resolve_ip(this->server_ip_or_name, this->server_ip_resolved);
+//    if (!resolve_res) {
+//        printf("resolve_ip error\n");
+//        return false;
+//    }
+
+    auto tunRes = this->tun_device->Create(this->detail.tun_if_name.c_str());
+    if (!tunRes) {
+        return false;
+    }
+    this->detail.tun_if_name = tun_device->GetTunName();
+
+    tunRes = this->tun_device->Setup(this);
     if (!tunRes) {
         return false;
     }
