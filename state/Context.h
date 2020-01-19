@@ -26,6 +26,7 @@ public:
 
 private:
     bool is_server;
+    // name of the tun device
     std::string if_name;
     std::string local_tun_ip;
     std::string remote_tun_ip;
