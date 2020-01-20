@@ -10,9 +10,10 @@ public:
     /*
      * For Server
      */
+#ifdef __linux__
     static bool AddClient(Context* context);
     static bool DeleteClient(Context* context);
-
+#endif
 
     /*
      * Client Only

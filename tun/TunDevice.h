@@ -66,6 +66,10 @@ public:
 
     bool Close(Context* context);
 
+    boost::asio::io_context& GetIO() {
+        return this->io_context;
+    }
+
     [[nodiscard]] std::string GetTunName() const { return tun_name; }
 private:
     std::string tun_name;

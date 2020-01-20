@@ -71,16 +71,21 @@ bool tun_setup(Context* context)
     std::string ipv4Up = "ifconfig $IF_NAME $LOCAL_TUN_IP $REMOTE_TUN_IP up";
     std::string ipv6Up = "ifconfig $IF_NAME inet6 $LOCAL_TUN_IP6 $REMOTE_TUN_IP6 prefixlen 128 up";
 
-    boost::replace_first(ipv4Up, "$IF_NAME", context->IfName());
+    boost::replace_first(ipv4Up, "$IF_NAME", context->TunIfName());
     boost::replace_first(ipv4Up, "$LOCAL_TUN_IP", context->LocalTunIP());
     boost::replace_first(ipv4Up, "$REMOTE_TUN_IP", context->RemoteTunIP());
 
-    boost::replace_first(ipv6Up, "$IF_NAME", context->IfName());
+    boost::replace_first(ipv6Up, "$IF_NAME", context->TunIfName());
     boost::replace_first(ipv6Up, "$LOCAL_TUN_IP6", context->LocalTunIP6());
     boost::replace_first(ipv6Up, "$REMOTE_TUN_IP6", context->RemoteTunIP6());
 
     shell.Run(ipv4Up);
     shell.Run(ipv6Up);
+    return true;
+}
+
+bool tun_remove(Context* context)
+{
     return true;
 }
 #endif
