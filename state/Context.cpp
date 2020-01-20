@@ -10,8 +10,7 @@
 #include <boost/config.hpp>
 
 Context::~Context() {
-    if (tun_device)
-        tun_device->Close(this);
+    printf("context die\n");
 }
 
 bool Context::InitByFile() {

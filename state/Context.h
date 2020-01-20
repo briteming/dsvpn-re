@@ -8,19 +8,19 @@
 #include <boost/make_shared.hpp>
 
 struct context_detail {
-    bool is_server;
+    bool is_server = false;
     // this may change, may call Router::GetDefaultInterfaceName() to update
-    std::string ext_if_name;
-    std::string gateway_ip;
+    std::string ext_if_name = "auto";
+    std::string gateway_ip = "auto";
     // name of the tun device
     std::string tun_if_name;
-    std::string local_tun_ip;
-    std::string remote_tun_ip;
-    std::string local_tun_ip6;
-    std::string remote_tun_ip6;
-    std::string server_ip_or_name;
-    std::string server_ip_resolved;
-    uint16_t    server_port;
+    std::string local_tun_ip = "auto";
+    std::string remote_tun_ip = "auto";
+    std::string local_tun_ip6 = "auto";
+    std::string remote_tun_ip6 = "auto";
+    std::string server_ip_or_name = "auto";
+    std::string server_ip_resolved = "auto";
+    uint16_t    server_port = 1800;
 };
 
 class Context {
@@ -49,6 +49,10 @@ public:
         return this->tun_device->GetIO();
     }
 
+    void Stop() {
+        if (tun_device)
+            tun_device->Close(this);
+    }
 private:
     context_detail detail;
     boost::shared_ptr<TunDevice> tun_device;

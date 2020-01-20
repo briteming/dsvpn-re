@@ -21,7 +21,9 @@ class Context;
 class TunDevice : public boost::enable_shared_from_this<TunDevice> {
 public:
     TunDevice(boost::asio::io_context& io);
-
+    ~TunDevice() {
+        printf("tundevice die\n");
+    }
 /*
      * @Return -1 if the operation failed
      * @Return >0 if the operation success

@@ -28,12 +28,34 @@ public:
         return true;
     }
 
+    bool Bind(std::string ip_address, uint16_t port) {
+        auto remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(ip_address), port);
+        boost::system::error_code ec;
+        this->udp_socket.open(remote_endpoint.protocol(), ec);
+        this->udp_socket.bind(remote_endpoint, ec);
+        if (ec) {
+            printf("bind failed --> %s\n", ec.message().c_str());
+            return false;
+        }
+        return true;
+    }
+
     size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
         return this->udp_socket.async_send(buffer, yield);
     }
 
+    size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
+        return this->udp_socket.async_send_to(buffer, last_recv_ep, yield);
+    }
+
     size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
         return this->udp_socket.async_receive(buffer, yield);
+    }
+
+    size_t ReceiveFrom(boost::asio::mutable_buffer&& buffer, boost::asio::ip::udp::endpoint& recv_ep, boost::asio::yield_context&& yield) {
+        auto bytes_read = this->udp_socket.async_receive_from(buffer, recv_ep, yield);
+        this->last_recv_ep = recv_ep;
+        return bytes_read;
     }
 
     template <class FunctionType>
@@ -59,6 +81,6 @@ private:
     boost::asio::io_context& io_context;
     boost::asio::ip::udp::socket udp_socket;
     std::atomic_int64_t async_tasks_running = 0;
-
+    boost::asio::ip::udp::endpoint last_recv_ep;
 };
 

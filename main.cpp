@@ -1,15 +1,27 @@
 #include "utils/IOWorker.h"
 #include "Client.h"
+#include "Server.h"
 
 int main() {
 
     IOWorker::GetInstance()->AsyncRun();
 
-    Client client;
-    client.Run();
+    {
+        auto server = boost::make_shared<Server>(DEFAULT_CLIENT_IP, 1800);
+        server->Run();
+        getchar();
+        server->Stop();
+        getchar();
+    }
+
+    printf("outsize\n");
     getchar();
-    client.Stop();
-    getchar();
+
+//    Client client;
+//    client.Run();
+//    getchar();
+//    client.Stop();
+//    getchar();
 //    getchar();
 //    conn->Spawn([](Connection* connection, boost::asio::yield_context yield){
 //        char read_buffer[1500];
