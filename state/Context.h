@@ -45,6 +45,10 @@ public:
     auto& ServerIPResolved() const { return this->detail.server_ip_resolved; }
     auto& ServerPort() const { return this->detail.server_port; }
 
+    boost::asio::io_context& GetIO() {
+        return this->tun_device->GetIO();
+    }
+
 private:
     context_detail detail;
     boost::shared_ptr<TunDevice> tun_device;

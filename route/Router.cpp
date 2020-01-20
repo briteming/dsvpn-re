@@ -33,6 +33,7 @@ bool Router::UnsetClientDefaultRoute(Context* context) {
     return route_client_unset_default(context);
 }
 
+#ifdef __linux__
 bool Router::AddClient(Context *context) {
     route_server_add_client(context);
 }
@@ -40,3 +41,4 @@ bool Router::AddClient(Context *context) {
 bool Router::DeleteClient(Context *context) {
     route_server_remove_client(context);
 }
+#endif
