@@ -1,6 +1,7 @@
 #pragma once
 
-#include "connection/Connection.h"
+#include "connection/IConnection.h"
+#include "connection/UDPConnection.h"
 #include "state/Context.h"
 #include "utils/IOWorker.h"
 #include "route/Router.h"
@@ -19,7 +20,7 @@ public:
             return;
         }
 
-        this->connection = boost::make_shared<Connection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
+        this->connection = boost::make_shared<UDPConnection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
         res = connection->Connect(context->ServerIPResolved(), context->ServerPort());
         if (!res) {
             return;
@@ -47,10 +48,10 @@ public:
         });
 
         //recv from remote and send to tun
-        this->connection->Spawn([self, connection = this->connection, context = this->context, this](Connection* conn, boost::asio::yield_context yield){
+        this->connection->Spawn([self, connection = this->connection, context = this->context, this](boost::asio::yield_context yield){
             while(true) {
                 boost::system::error_code ec;
-                auto bytes_read = conn->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
+                auto bytes_read = connection->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
                 if (ec.value() == boost::system::errc::operation_canceled || ec.value() == boost::system::errc::bad_file_descriptor) {
                     printf("recv err --> %s\n", ec.message().c_str());
                     return;
@@ -85,5 +86,5 @@ public:
 
 private:
     boost::shared_ptr<Context> context;
-    boost::shared_ptr<Connection> connection;
+    boost::shared_ptr<IConnection> connection;
 };

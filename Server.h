@@ -30,7 +30,7 @@ public:
         context_detail detail = {
             .is_server = true,
             .ext_if_name = "Router::GetDefaultInterfaceName()",
-            .gateway_ip = "Router::GetDefaultGatewayIp()",
+            .gatewReceiveFromay_ip = "Router::GetDefaultGatewayIp()",
             .tun_if_name = vpn_default_if_name + std::to_string(vpn_index++),
             .local_tun_ip = DEFAULT_SERVER_IP,
             .remote_tun_ip = this->client_tun_ip,
