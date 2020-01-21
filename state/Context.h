@@ -1,11 +1,17 @@
 #pragma once
 
 #include <string>
-#include "../route/Router.h"
 #include "../tun/TunDevice.h"
-#include "../utils/Singleton.h"
 #include <boost/asio/io_context.hpp>
 #include <boost/make_shared.hpp>
+
+enum class ConnProtocolType : int {
+    UDP,
+    TCP,
+    UTCP
+};
+
+std::string ConnProtocolTypeToString(ConnProtocolType type);
 
 struct context_detail {
     bool is_server = false;
@@ -22,11 +28,13 @@ struct context_detail {
     std::string server_ip_resolved = "auto";
     std::string conn_key = "12345678";
     uint16_t    server_port = 1800;
+    ConnProtocolType conn_protocol = ConnProtocolType::UDP;
 };
 
 class Context {
     friend class ContextHelper;
 public:
+
     Context(boost::asio::io_context& io) : tun_device(boost::make_shared<TunDevice>(io)){}
     ~Context();
 
@@ -46,6 +54,7 @@ public:
     auto& ServerIPResolved() const { return this->detail.server_ip_resolved; }
     auto& ServerPort() const { return this->detail.server_port; }
     auto& ConnKey() const { return this->detail.conn_key; }
+    ConnProtocolType ConnProtocol() const { return this->detail.conn_protocol; }
     boost::asio::io_context& GetIO() {
         return this->tun_device->GetIO();
     }

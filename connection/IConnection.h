@@ -17,7 +17,7 @@ public:
 
     virtual bool Bind(std::string ip_address, uint16_t port) = 0;
 
-    virtual void Accept() = 0;
+    virtual void Accept() {};
 
     virtual size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 

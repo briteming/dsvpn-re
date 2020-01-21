@@ -8,6 +8,20 @@
 #include <string>
 #include "Constant.h"
 #include <boost/config.hpp>
+#include "../route/Router.h"
+
+std::string ConnProtocolTypeToString(ConnProtocolType type) {
+    switch(type) {
+        case ConnProtocolType::UDP:
+            return "UDP";
+        case ConnProtocolType::TCP:
+            return "TCP";
+        case ConnProtocolType::UTCP:
+            return "UTCP";
+        default:
+            return "ConnProtocolTypeToString: unknown type";
+    }
+}
 
 Context::~Context() {
     printf("context die\n");

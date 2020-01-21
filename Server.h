@@ -9,7 +9,7 @@
 #include "route/Router.h"
 #include "state/ContextHelper.h"
 #include "state/Constant.h"
-#include <netinet/ip.h>
+#include "misc/ip.h"
 #include <boost/enable_shared_from_this.hpp>
 
 class Server : public boost::enable_shared_from_this<Server> {
@@ -29,7 +29,8 @@ public:
                 .server_ip_or_name = "auto",
                 .server_ip_resolved = "auto",
                 .conn_key = conn_key,
-                .server_port = conn_port
+                .server_port = conn_port,
+                .conn_protocol = ConnProtocolType::UDP
         };
         this->io_index = IOWorker::GetInstance()->GetRandomIndex();
         this->context = ContextHelper::CreateContextAtIOIndex(detail, this->io_index);
@@ -50,8 +51,20 @@ public:
             return;
         }
         this->client_tun_ip_integer = inet_addr(this->context->RemoteTunIP().c_str());
-        this->connection = boost::make_shared<TCPConnection>(IOWorker::GetInstance()->GetContextBy(this->io_index), this->context->ConnKey());
-
+        switch (this->context->ConnProtocol()) {
+            case ConnProtocolType::UDP: {
+                this->connection = boost::make_shared<UDPConnection>(IOWorker::GetInstance()->GetContextBy(this->io_index), this->context->ConnKey());
+                break;
+            }
+            case ConnProtocolType::TCP: {
+                this->connection = boost::make_shared<TCPConnection>(IOWorker::GetInstance()->GetContextBy(this->io_index), this->context->ConnKey());
+                break;
+            }
+            default: {
+                printf("unknow ConnProtocolType\n");
+                return;
+            }
+        }
         res = connection->Bind("0.0.0.0", context->ServerPort());
         if (!res) {
             return;
@@ -92,11 +105,11 @@ public:
                     return;
                 }
                 auto ip_hdr = (iphdr*)connection->GetTunBuffer();
-                if (ip_hdr->version != 4) {
+                if (ip_hdr->ip_v != 4) {
                     continue;
                 }
-
-                if (ip_hdr->daddr != this->client_tun_ip_integer) {
+                auto dst = inet_ntoa(ip_hdr->ip_dst);
+                if (ip_hdr->ip_dst.s_addr != this->client_tun_ip_integer) {
                     continue;
                 }
 
@@ -111,7 +124,7 @@ public:
         });
 
         Router::AddClient(context.get());
-        printf("dsvpn add client, tun_ip: %s, listened_port: %d\n",this->context->RemoteTunIP().c_str(), this->context->ServerPort());
+        printf("dsvpn add client, tun_ip: %s, listened_port: %d, protocol: %s\n",this->context->RemoteTunIP().c_str(), this->context->ServerPort(), ConnProtocolTypeToString(this->context->ConnProtocol()).c_str());
 
     }
 
