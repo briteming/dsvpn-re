@@ -2,6 +2,7 @@
 
 #include "connection/IConnection.h"
 #include "connection/UDPConnection.h"
+#include "connection/TCPConnection.h"
 #include "state/Context.h"
 #include "utils/IOWorker.h"
 #include "route/Router.h"
@@ -20,10 +21,25 @@ public:
             return;
         }
 
-        this->connection = boost::make_shared<UDPConnection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
-        res = connection->Connect(context->ServerIPResolved(), context->ServerPort());
-        if (!res) {
-            return;
+        this->connection = boost::make_shared<TCPConnection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
+        Reconnect();
+        Router::SetClientDefaultRoute(context.get());
+
+    }
+
+    void Reconnect() {
+        if (reconnecting) return;
+        reconnecting = true;
+
+        bool res = false;
+        while (!res) {
+            res = connection->Connect(context->ServerIPResolved(), context->ServerPort());
+            if (!res) {
+                printf("Connect failed, retrying in 3s\n");
+                sleep(3);
+            }else {
+                printf("Connected to %s:%d\n",context->ServerIPResolved().c_str(), context->ServerPort());
+            }
         }
 
         auto self(this->shared_from_this());
@@ -37,12 +53,10 @@ public:
                     return;
                 }
                 auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - 4), yield[ec]);
-                if (ec.value() == boost::system::errc::operation_canceled || ec.value() == boost::system::errc::bad_file_descriptor) {
+                if (ec) {
                     printf("send err --> %s\n", ec.message().c_str());
+                    Reconnect();
                     return;
-                }else if (ec) {
-                    printf("send err --> %s\n", ec.message().c_str());
-                    continue;
                 }
             }
         });
@@ -52,12 +66,10 @@ public:
             while(true) {
                 boost::system::error_code ec;
                 auto bytes_read = connection->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
-                if (ec.value() == boost::system::errc::operation_canceled || ec.value() == boost::system::errc::bad_file_descriptor) {
+                if (ec) {
                     printf("recv err --> %s\n", ec.message().c_str());
+                    Reconnect();
                     return;
-                }else if (ec) {
-                    printf("recv err --> %s\n", ec.message().c_str());
-                    continue;
                 }
 
                 if (bytes_read == 0) {
@@ -72,10 +84,8 @@ public:
                 }
             }
         });
-        Router::SetClientDefaultRoute(context.get());
-
+        reconnecting = false;
     }
-
     void Stop() {
         Router::UnsetClientDefaultRoute(context.get());
         this->connection->Close();
@@ -87,4 +97,5 @@ public:
 private:
     boost::shared_ptr<Context> context;
     boost::shared_ptr<IConnection> connection;
+    std::atomic_bool reconnecting = false;
 };
