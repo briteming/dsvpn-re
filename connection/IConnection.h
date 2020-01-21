@@ -6,43 +6,26 @@
 #include <boost/asio/spawn.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/asio/deadline_timer.hpp>
-#include <boost/asio/ip/basic_endpoint.hpp>
 #include "Protocol.h"
-#include <boost/asio/ip/basic_endpoint.hpp>
 
 class IConnection : public boost::enable_shared_from_this<IConnection> {
 public:
 
     IConnection(boost::asio::io_context& io, std::string conn_key) : io_context(io), protocol(conn_key) {}
 
-    virtual bool Connect(std::string ip_address, uint16_t port) {
+    virtual bool Connect(std::string ip_address, uint16_t port) = 0;
 
-    }
+    virtual bool Bind(std::string ip_address, uint16_t port) = 0;
 
-    virtual bool Bind(std::string ip_address, uint16_t port) {
+    virtual void Accept() = 0;
 
-    }
+    virtual size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
-    virtual void Accept() {
+    virtual size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
-    }
-    virtual size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
+    virtual size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
-    }
-
-    virtual size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-
-    }
-
-    // send to the last received ep
-    // if conn never ReceiveFrom packet before, the sendto will fail
-    virtual size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-
-    }
-
-    virtual size_t ReceiveFrom(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-
-    }
+    virtual size_t ReceiveFrom(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
     template <class FunctionType>
     void Spawn(FunctionType&& func) {
@@ -54,9 +37,7 @@ public:
         });
     }
 
-    virtual void Close() {
-
-    }
+    virtual void Close() = 0;
 
     char* GetTunBuffer() {
         return this->tun_recv_buffer + ProtocolHeader::ProtocolHeaderSize();

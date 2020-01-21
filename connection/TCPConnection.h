@@ -106,7 +106,7 @@ public:
         return bytes_send;
     }
 
-    virtual size_t Receive(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) {
+    virtual size_t Receive(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
 
         if (connecting) {
             // sleep if socket connecting
@@ -134,7 +134,7 @@ public:
 
     // send to the last received ep
     // if conn never ReceiveFrom packet before, the sendto will fail
-    virtual size_t SendTo(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) {
+    virtual size_t SendTo(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
         if (!conn_socket) return 0;
         auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
         header->PAYLOAD_LENGTH = buffer.size();

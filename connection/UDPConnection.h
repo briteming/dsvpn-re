@@ -44,7 +44,7 @@ public:
         return this->udp_socket.async_send(boost::asio::buffer((void*)header, payload_len + ProtocolHeader::ProtocolHeaderSize()), yield);
     }
 
-    virtual size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
+    virtual size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) override {
         this->udp_socket.async_receive(buffer, yield);
         auto header = (ProtocolHeader*)this->GetConnBuffer();
         auto payload_len = this->protocol.DecryptHeader(header);
@@ -55,7 +55,7 @@ public:
 
     // send to the last received ep
     // if conn never ReceiveFrom packet before, the sendto will fail
-    virtual size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
+    virtual size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) override {
         auto header = (ProtocolHeader*)(this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
         header->PAYLOAD_LENGTH = buffer.size();
         header->PADDING_LENGTH = 0;
