@@ -8,6 +8,12 @@
 #include "route/Router.h"
 #include "misc/ip.h"
 
+#ifdef __APPLE__
+#define TUN_PACKET_HL 4
+#elif __linux__
+#define TUN_PACKET_HL 0
+#endif
+
 class Client : public boost::enable_shared_from_this<Client> {
 public:
 
@@ -62,7 +68,7 @@ public:
         context->GetTunDevice()->Spawn([self, connection = this->connection, this](TunDevice* tun, boost::asio::yield_context& yield){
             while(true) {
                 boost::system::error_code ec;
-                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - 4, DEFAULT_TUN_MTU + 4), yield[ec]);
+                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - TUN_PACKET_HL, DEFAULT_TUN_MTU + TUN_PACKET_HL), yield[ec]);
                 if (ec) {
                     printf("read err --> %s\n", ec.message().c_str());
                     return;
@@ -71,7 +77,7 @@ public:
                 if (((iphdr*)connection->GetTunBuffer())->ip_v != 4)
                     continue;
 
-                auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - 4), yield[ec]);
+                auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);
                 if (ec) {
                     printf("send err --> %s\n", ec.message().c_str());
                     Reconnect();
@@ -95,8 +101,8 @@ public:
                     printf("decrypt error\n");
                     continue;
                 }
-                *(uint32_t*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - 4) = 33554432;
-                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer((void*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - 4), bytes_read + 4), yield[ec]);
+                *(uint32_t*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - TUN_PACKET_HL) = 33554432;
+                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer((void*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - TUN_PACKET_HL), bytes_read + TUN_PACKET_HL), yield[ec]);
                 if (ec) {
                     printf("recv err --> %s\n", ec.message().c_str());
                     return;
@@ -105,6 +111,7 @@ public:
         });
         reconnecting = false;
     }
+
     void Stop() {
         Router::UnsetClientDefaultRoute(context.get());
         this->connection->Close();

@@ -7,18 +7,18 @@ int main() {
     auto res = sodium_init();
     if (res != 0) return -1;
     IOWorker::GetInstance()->AsyncRun();
-    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
-    getchar();
-    DestroyServer(1800);
-    getchar();
+//    CreateServer(DEFAULT_CLIENT_IP, 1900, "12345678");
+//    getchar();
+//    DestroyServer(1800);
+//    getchar();
 
-//    {
-//        auto client = boost::make_shared<Client>();
-//        client->Run();
-//        getchar();
-//        client->Stop();
-//        getchar();
-//    }
+    {
+        auto client = boost::make_shared<Client>();
+        client->Run();
+        getchar();
+        client->Stop();
+        getchar();
+    }
 
 //
 //    printf("outsize\n");

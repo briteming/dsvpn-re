@@ -24,7 +24,7 @@ bool route_client_set_default(Context* context) {
 
     Shell shell;
     shell.Run(add_default_gw_command);
-    shell.Run(add_default_gw_command2);
+    //shell.Run(add_default_gw_command2);
     shell.Run(add_default_gw_command3);
     shell.Run(add_default_gw_command4);
     shell.Run(add_default_gw_command5);
