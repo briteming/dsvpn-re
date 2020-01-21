@@ -38,6 +38,7 @@ public:
             .remote_tun_ip6 = "64:ff9b::" + std::string(this->client_tun_ip),
             .server_ip_or_name = "auto",
             .server_ip_resolved = "auto",
+            .conn_key = "12345678",
             .server_port = this->conn_port
         };
 

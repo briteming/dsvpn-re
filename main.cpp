@@ -8,7 +8,7 @@ int main() {
     sodium_init();
     IOWorker::GetInstance()->AsyncRun();
     {
-        auto client = boost::make_shared<Client>("12345678");
+        auto client = boost::make_shared<Client>();
         client->Run();
         getchar();
         client->Stop();

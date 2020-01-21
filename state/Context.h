@@ -20,6 +20,7 @@ struct context_detail {
     std::string remote_tun_ip6 = "auto";
     std::string server_ip_or_name = "auto";
     std::string server_ip_resolved = "auto";
+    std::string conn_key = "12345678";
     uint16_t    server_port = 1800;
 };
 
@@ -44,7 +45,7 @@ public:
     auto& ServerIPOrName() const { return this->detail.server_ip_or_name; }
     auto& ServerIPResolved() const { return this->detail.server_ip_resolved; }
     auto& ServerPort() const { return this->detail.server_port; }
-
+    auto& ConnKey() const { return this->detail.conn_key; }
     boost::asio::io_context& GetIO() {
         return this->tun_device->GetIO();
     }

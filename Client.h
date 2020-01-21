@@ -8,10 +8,6 @@
 class Client : public boost::enable_shared_from_this<Client> {
 public:
 
-    Client(std::string conn_key) {
-        this->connection = boost::make_shared<Connection>(IOWorker::GetInstance()->GetContextBy(0), conn_key);
-    }
-
     ~Client() {
         printf("client die\n");
     }
@@ -23,6 +19,7 @@ public:
             return;
         }
 
+        this->connection = boost::make_shared<Connection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
         res = connection->Connect(context->ServerIPResolved(), context->ServerPort());
         if (!res) {
             return;

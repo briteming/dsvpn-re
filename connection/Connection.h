@@ -13,7 +13,7 @@
 class Connection : public boost::enable_shared_from_this<Connection> {
 public:
 
-    Connection(boost::asio::io_context& io, std::string& conn_key) : io_context(io), udp_socket(io), protocol(conn_key) {}
+    Connection(boost::asio::io_context& io, std::string conn_key) : io_context(io), udp_socket(io), protocol(conn_key) {}
 
     bool Connect(std::string ip_address, uint16_t port) {
         auto remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(ip_address), port);

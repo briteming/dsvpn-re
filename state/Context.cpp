@@ -53,6 +53,14 @@ bool Context::InitByFile() {
         }
     }
 
+    res = h.Parse<std::string>("conn_key");
+    if (res.error) {
+        printf("conn_key not set\n");
+        return false;
+    }
+
+    this->detail.conn_key = res.value;
+
     res = h.Parse<std::string>("server_ip_or_name");
     if (res.error) {
         printf("server_ip_or_name not set\n");
