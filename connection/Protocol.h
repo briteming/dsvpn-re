@@ -3,11 +3,18 @@
 #include "ProtocolHeader.h"
 #include "AES-256-GCM.h"
 #include <cstring>
+#include <string>
 
 #define MAX_BUFFSIZE 1500
 
 struct Protocol {
 public:
+
+    Protocol(std::string conn_key) {
+        //the last digit should be 0
+        auto max_copy_len = crypto_aead_aes256gcm_KEYBYTES - 2;
+        memcpy(this->key, conn_key.c_str(), conn_key.length() > max_copy_len ? max_copy_len : conn_key.length());
+    }
 
     uint32_t EncryptHeader(ProtocolHeader* header)
     {

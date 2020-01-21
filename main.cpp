@@ -1,12 +1,14 @@
 #include "utils/IOWorker.h"
 #include "Client.h"
 #include "Server.h"
+#include <sodium.h>
 
 int main() {
 
+    sodium_init();
     IOWorker::GetInstance()->AsyncRun();
     {
-        auto client = boost::make_shared<Client>();
+        auto client = boost::make_shared<Client>("12345678");
         client->Run();
         getchar();
         client->Stop();

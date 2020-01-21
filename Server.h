@@ -15,10 +15,11 @@ static int vpn_index = 0;
 class Server : public boost::enable_shared_from_this<Server> {
     const std::string vpn_default_if_name = "dsvpn";
 public:
-    Server(std::string client_tun_ip, uint16_t conn_port) {
+    Server(std::string client_tun_ip, uint16_t conn_port, std::string conn_key) {
         this->client_tun_ip = client_tun_ip;
         this->client_tun_ip_integer = inet_addr(client_tun_ip.c_str());
         this->conn_port = conn_port;
+        this->connection = boost::make_shared<Connection>(IOWorker::GetInstance()->GetRandomContext(), conn_key);
     }
 
     ~Server() {
@@ -46,7 +47,6 @@ public:
             return;
         }
 
-        this->connection = boost::make_shared<Connection>(IOWorker::GetInstance()->GetRandomContext());
         res = connection->Bind("0.0.0.0", context->ServerPort());
         if (!res) {
             return;
