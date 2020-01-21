@@ -75,6 +75,22 @@ bool Context::InitByFile() {
 
     this->detail.conn_key = res.value;
 
+    res = h.Parse<std::string>("conn_protocol");
+    if (res.error) {
+        printf("conn_protocol not set\n");
+        return false;
+    }
+
+    if (res.value == "udp") {
+        this->detail.conn_protocol = ConnProtocolType::UDP;
+    }
+    if (res.value == "tcp") {
+        this->detail.conn_protocol = ConnProtocolType::TCP;
+    }
+    if (res.value == "utcp") {
+        this->detail.conn_protocol = ConnProtocolType::UTCP;
+    }
+
     res = h.Parse<std::string>("server_ip_or_name");
     if (res.error) {
         printf("server_ip_or_name not set\n");

@@ -22,7 +22,20 @@ public:
             return;
         }
 
-        this->connection = boost::make_shared<TCPConnection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
+        switch (this->context->ConnProtocol()) {
+            case ConnProtocolType::UDP: {
+                this->connection = boost::make_shared<UDPConnection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
+                break;
+            }
+            case ConnProtocolType::TCP: {
+                this->connection = boost::make_shared<TCPConnection>(IOWorker::GetInstance()->GetContextBy(0), this->context->ConnKey());
+                break;
+            }
+            default: {
+                printf("unknow ConnProtocolType\n");
+                return;
+            }
+        }
         Reconnect();
         Router::SetClientDefaultRoute(context.get());
 
