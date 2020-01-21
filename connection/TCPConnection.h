@@ -153,7 +153,6 @@ public:
                     this->conn_socket.swap(this->conn_socket_pending);
                     break;
                 }
-
                 // sleep if there's no conn_socket available
                 this->chosen_socket_signal.expires_from_now(boost::posix_time::pos_infin);
                 this->chosen_socket_signal.async_wait(yield);
