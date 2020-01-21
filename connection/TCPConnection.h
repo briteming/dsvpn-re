@@ -83,6 +83,7 @@ public:
             if (bytes_read == 0) return;
             // if we can decode the payload successfully, the conn_socket is chosen
             if (this->protocol.DecryptPayload(header)) {}
+            printf("client dsvpn%d connection from %s:%d\n", this->tcp_acceptor.local_endpoint().port(), conn_socket->remote_endpoint().address().to_string().c_str(), conn_socket->remote_endpoint().port());
             if (this->conn_socket) {
                 // close the old socket
                 this->conn_socket->close();
