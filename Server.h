@@ -66,9 +66,10 @@ public:
                     printf("decrypt error\n");
                     continue;
                 }
+
                 auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), bytes_read), yield[ec]);
                 if (ec) {
-                    //printf("send err --> %s\n", ec.message().c_str());
+                    printf("send err --> %s\n", ec.message().c_str());
                     return;
                 }
             }

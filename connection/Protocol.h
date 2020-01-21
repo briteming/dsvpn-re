@@ -84,7 +84,7 @@ public:
 
 
 private:
-    unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
+    unsigned char key[crypto_aead_aes256gcm_KEYBYTES] = {0};
     unsigned char encryptedData[MAX_BUFFSIZE];
     unsigned char decryptedData[MAX_BUFFSIZE];
 };
