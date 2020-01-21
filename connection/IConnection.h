@@ -23,6 +23,9 @@ public:
 
     }
 
+    virtual void Accept() {
+
+    }
     virtual size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
 
     }

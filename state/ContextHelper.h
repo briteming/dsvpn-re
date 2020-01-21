@@ -12,4 +12,10 @@ public:
         context->detail = detail;
         return context;
     }
+
+    static boost::shared_ptr<Context> CreateContextAtIOIndex(context_detail& detail, uint8_t io_index) {
+        auto context = boost::make_shared<Context>(IOWorker::GetInstance()->GetContextBy(io_index));
+        context->detail = detail;
+        return context;
+    }
 };

@@ -15,6 +15,10 @@ public:
         }
     }
 
+    uint8_t GetRandomIndex() {
+        return randomNum(0, boost::thread::hardware_concurrency() - 1);
+    }
+
     boost::asio::io_context& GetRandomContext() {
         return io_contexts[randomNum(0, boost::thread::hardware_concurrency() - 1)];
     }

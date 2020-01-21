@@ -2,25 +2,24 @@
 #include "Client.h"
 #include "Server.h"
 #include <sodium.h>
-
 int main() {
 
-    sodium_init();
+    auto res = sodium_init();
+    if (res != 0) return -1;
     IOWorker::GetInstance()->AsyncRun();
-    {
-        auto client = boost::make_shared<Client>();
-        client->Run();
-        getchar();
-        client->Stop();
-        getchar();
-    }
+    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
+    getchar();
+    DestroyServer(1800);
+    getchar();
+
 //    {
-//        auto server = boost::make_shared<Server>(DEFAULT_CLIENT_IP, 1800);
-//        server->Run();
+//        auto client = boost::make_shared<Client>();
+//        client->Run();
 //        getchar();
-//        server->Stop();
+//        client->Stop();
 //        getchar();
 //    }
+
 //
 //    printf("outsize\n");
 //    getchar();

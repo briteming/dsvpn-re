@@ -1,0 +1,4 @@
+is_server: true
+
+server_ip_or_name: 4.4.4.4
+server_port: 1800

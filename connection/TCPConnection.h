@@ -1,13 +1,15 @@
 #pragma once
 
+#include <boost/make_shared.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
+#include <boost/asio/write.hpp>
 #include "IConnection.h"
 
 class TCPConnection : public IConnection {
 public:
 
-    TCPConnection(boost::asio::io_context& io, std::string conn_key) : IConnection(io, conn_key), tcp_socket(io) {
+    TCPConnection(boost::asio::io_context &io, std::string conn_key) : IConnection(io, conn_key), tcp_acceptor(io), tcp_socket(io), chosen_socket_signal(io) {
 
     }
 
@@ -35,64 +37,161 @@ public:
         return true;
     }
 
-    virtual size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) override  {
-        auto header = (ProtocolHeader*)(this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
+    void Accept() override {
+        if (this->accepting) return;
+        this->accepting = true;
+        auto self(this->shared_from_this());
+        boost::asio::spawn(this->io_context, [self, this](boost::asio::yield_context yield){
+            while(true) {
+                auto conn_socket = boost::make_shared<boost::asio::ip::tcp::socket>(this->io_context);
+                boost::system::error_code ec;
+                this->tcp_acceptor.async_accept(*conn_socket, yield[ec]);
+                if (ec) {
+                    continue;
+                }
+                this->accepting = false;
+                tryReceive(conn_socket);
+            }
+        });
+    }
+
+    void tryReceive(boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket) {
+        auto self(this->shared_from_this());
+        boost::asio::spawn(this->io_context, [self, this, conn_socket](boost::asio::yield_context yield){
+            ProtocolHeader * header;
+            size_t payload_len;
+            size_t bytes_read;
+
+            bytes_read = boost::asio::async_read(*conn_socket, boost::asio::buffer(
+                    this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
+            if (bytes_read == 0) return;
+            header = (ProtocolHeader *) this->GetConnBuffer();
+            payload_len = this->protocol.DecryptHeader(header);
+            if (payload_len == 0) return;
+            bytes_read = boost::asio::async_read(*conn_socket, boost::asio::buffer(
+                    this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
+            if (bytes_read == 0) return;
+            // if we can decode the payload successfully, the conn_socket is chosen
+            if (this->protocol.DecryptPayload(header)) {}
+            if (this->conn_socket) {
+                // close the old socket
+                this->conn_socket->close();
+                this->conn_socket.reset();
+            }
+            this->conn_socket_pending = conn_socket;
+            this->chosen_socket_signal.cancel();
+        });
+    }
+
+    virtual size_t Send(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
+        if (!conn_socket) {
+            this->conn_socket.swap(this->conn_socket_pending);
+            this->conn_socket_pending = nullptr;
+        }
+        if (!conn_socket) return 0;
+        auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
         header->PAYLOAD_LENGTH = buffer.size();
         header->PADDING_LENGTH = 0;
         this->protocol.EncryptPayload(header);
         auto payload_len = this->protocol.EncryptHeader(header);
-        return this->tcp_socket.async_send(boost::asio::buffer((void*)header, payload_len + ProtocolHeader::ProtocolHeaderSize()), yield);
+        //auto bytes_read = boost::asio::async_read(this->conn_socket, boost::asio::buffer(
+        //        this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
+        return 0;
     }
 
-    virtual size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-        auto bytes_read = boost::asio::async_read(this->tcp_socket, boost::asio::buffer(this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
-        if (bytes_read == 0) return 0;
-        auto header = (ProtocolHeader*)this->GetConnBuffer();
-        auto payload_len = this->protocol.DecryptHeader(header);
-        if (payload_len == 0) return 0;
-        bytes_read = boost::asio::async_read(this->tcp_socket, boost::asio::buffer(this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
-        if (bytes_read == 0) return 0;
-        if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
-        return 0;
+    virtual size_t Receive(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) {
+
+        while (true) {
+            if (!conn_socket) {
+                if (conn_socket_pending)
+                    this->conn_socket.swap(this->conn_socket_pending);
+                // sleep if there's no conn_socket available
+                this->chosen_socket_signal.async_wait(yield);
+            }
+
+            ProtocolHeader * header;
+            size_t payload_len;
+            size_t bytes_read;
+
+            bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
+                    this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
+            if (bytes_read == 0) continue;
+            //recheck chosen socket
+            if (!this->conn_socket) continue;
+            header = (ProtocolHeader *) this->GetConnBuffer();
+            payload_len = this->protocol.DecryptHeader(header);
+            if (payload_len == 0) continue;
+            bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
+                    this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
+            if (bytes_read == 0) continue;
+            if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
+        }
     }
 
     // send to the last received ep
     // if conn never ReceiveFrom packet before, the sendto will fail
-    virtual size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-        auto header = (ProtocolHeader*)(this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
+    virtual size_t SendTo(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) {
+        auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
         header->PAYLOAD_LENGTH = buffer.size();
         header->PADDING_LENGTH = 0;
         this->protocol.EncryptPayload(header);
         auto payload_len = this->protocol.EncryptHeader(header);
-        return this->udp_socket.async_send_to(boost::asio::buffer((void*)header, payload_len + ProtocolHeader::ProtocolHeaderSize()), last_recv_ep, yield);
+//        return this->tcp_socket.async_send_to(
+//                boost::asio::buffer((void *) header, payload_len + ProtocolHeader::ProtocolHeaderSize()), last_recv_ep,
+//                yield);
     }
 
-    virtual size_t ReceiveFrom(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) override {
-        auto bytes_read = this->udp_socket.async_receive_from(buffer, this->last_recv_ep, yield);
-        auto header = (ProtocolHeader*)this->GetConnBuffer();
-        auto payload_len = this->protocol.DecryptHeader(header);
-        if (payload_len == 0) return 0;
-        if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
-        return 0;
+    virtual size_t ReceiveFrom(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
+        while (true) {
+            if (!conn_socket) {
+                if (conn_socket_pending)
+                    this->conn_socket.swap(this->conn_socket_pending);
+                // sleep if there's no conn_socket available
+                this->chosen_socket_signal.expires_from_now(boost::posix_time::pos_infin);
+                this->chosen_socket_signal.async_wait(yield);
+            }
+
+            ProtocolHeader * header;
+            size_t payload_len;
+            size_t bytes_read;
+
+            bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
+                    this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
+            if (bytes_read == 0) continue;
+            //recheck chosen socket
+            if (!this->conn_socket) continue;
+            header = (ProtocolHeader *) this->GetConnBuffer();
+            payload_len = this->protocol.DecryptHeader(header);
+            if (payload_len == 0) continue;
+            bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
+                    this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
+            if (bytes_read == 0) continue;
+            if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
+        }
     }
 
     virtual void Close() override {
         auto self(this->shared_from_this());
         boost::asio::spawn(this->io_context, [self, this](boost::asio::yield_context yield) {
-            if (this->async_tasks_running > 0)
-            {
-                this->udp_socket.close();
+            if (this->async_tasks_running > 0) {
+                this->tcp_socket.close();
             }
         });
     }
 
 
 private:
+    boost::asio::ip::tcp::acceptor tcp_acceptor;
     boost::asio::ip::tcp::socket tcp_socket;
+    boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket;
+    boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket_pending;
+    boost::asio::deadline_timer chosen_socket_signal;
     boost::asio::ip::tcp::endpoint last_recv_ep;
-
-    size_t ReceiveHead(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
+    std::atomic_bool accepting = false;
+    std::atomic_bool conn_socket_changed = false;
+    size_t ReceiveHead(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) {
 
         return 0;
     };
 
+};
