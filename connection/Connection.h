@@ -8,6 +8,7 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/asio/deadline_timer.hpp>
+#include "Protocol.h"
 
 class Connection : public boost::enable_shared_from_this<Connection> {
 public:
@@ -41,15 +42,27 @@ public:
     }
 
     size_t Send(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-        return this->udp_socket.async_send(buffer, yield);
-    }
-
-    size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-        return this->udp_socket.async_send_to(buffer, last_recv_ep, yield);
+        auto header = (ProtocolHeader*)this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize();
+        header->PAYLOAD_LENGTH = buffer.size();
+        header->PADDING_LENGTH = 0;
+        this->protocol.EncryptPayload(header);
+        auto payload_len = this->protocol.EncryptHeader(header);
+        return this->udp_socket.async_send(boost::asio::buffer((void*)header, payload_len + ProtocolHeader::ProtocolHeaderSize()), yield);
     }
 
     size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-        return this->udp_socket.async_receive(buffer, yield);
+        this->udp_socket.async_receive(buffer, yield);
+        auto header = (ProtocolHeader*)this->GetConnBuffer();
+        auto payload_len = this->protocol.DecryptHeader(header);
+        if (payload_len == 0) return 0;
+        if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
+        return 0;
+    }
+
+    // send to the last received ep
+    // if conn never ReceiveFrom packet before, the sendto will fail
+    size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
+        return this->udp_socket.async_send_to(buffer, last_recv_ep, yield);
     }
 
     size_t ReceiveFrom(boost::asio::mutable_buffer&& buffer, boost::asio::ip::udp::endpoint& recv_ep, boost::asio::yield_context&& yield) {
@@ -77,10 +90,22 @@ public:
             }
         });
     }
+
+    char* GetTunBuffer() {
+        return this->tun_recv_buffer + ProtocolHeader::ProtocolHeaderSize();
+    }
+
+    char* GetConnBuffer() {
+        return this->conn_recv_buffer + ProtocolHeader::ProtocolHeaderSize();
+    }
+
 private:
     boost::asio::io_context& io_context;
     boost::asio::ip::udp::socket udp_socket;
     std::atomic_int64_t async_tasks_running = 0;
     boost::asio::ip::udp::endpoint last_recv_ep;
+    char tun_recv_buffer[1500];
+    char conn_recv_buffer[1500];
+    Protocol protocol;
 };
 

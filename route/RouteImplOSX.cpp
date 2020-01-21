@@ -21,11 +21,11 @@ bool route_client_set_default(Context* context) {
     boost::replace_first(add_default_gw_command5, "$REMOTE_TUN_IP6", context->RemoteTunIP6());
 
     Shell shell;
-    shell.Run(add_default_gw_command);
     shell.Run(add_default_gw_command2);
     shell.Run(add_default_gw_command3);
     shell.Run(add_default_gw_command4);
     shell.Run(add_default_gw_command5);
+    shell.Run(add_default_gw_command);
 
     return true;
 }

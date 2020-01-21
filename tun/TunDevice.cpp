@@ -24,7 +24,7 @@ bool TunDevice::Create(const char *wanted_name) {
 }
 
 bool TunDevice::Setup(Context* context) {
-    return tun_setup(context);
+    return this->SetMTU(DEFAULT_TUN_MTU) && tun_setup(context);
 }
 
 bool TunDevice::Close(Context* context) {
@@ -39,7 +39,20 @@ bool TunDevice::Close(Context* context) {
 }
 
 bool TunDevice::SetMTU(int mtu) {
-    return false;
+    struct ifreq ifr;
+    int          fd;
+
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        return false;
+    }
+    ifr.ifr_mtu = mtu;
+    snprintf(ifr.ifr_name, IFNAMSIZ, "%s", this->tun_name.c_str());
+    if (ioctl(fd, SIOCSIFMTU, &ifr) != 0) {
+        close(fd);
+        return false;
+    }
+    close(fd);
+    return true;
 }
 
 size_t TunDevice::Read(const boost::asio::mutable_buffer &&buffer, boost::asio::yield_context&& yield) {

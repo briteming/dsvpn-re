@@ -5,17 +5,23 @@
 int main() {
 
     IOWorker::GetInstance()->AsyncRun();
-
     {
-        auto server = boost::make_shared<Server>(DEFAULT_CLIENT_IP, 1800);
-        server->Run();
+        auto client = boost::make_shared<Client>();
+        client->Run();
         getchar();
-        server->Stop();
+        client->Stop();
         getchar();
     }
-
-    printf("outsize\n");
-    getchar();
+//    {
+//        auto server = boost::make_shared<Server>(DEFAULT_CLIENT_IP, 1800);
+//        server->Run();
+//        getchar();
+//        server->Stop();
+//        getchar();
+//    }
+//
+//    printf("outsize\n");
+//    getchar();
 
 //    Client client;
 //    client.Run();

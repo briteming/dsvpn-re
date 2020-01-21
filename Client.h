@@ -5,8 +5,13 @@
 #include "utils/IOWorker.h"
 #include "route/Router.h"
 
-class Client {
+class Client : public boost::enable_shared_from_this<Client> {
 public:
+
+    ~Client() {
+        printf("client die\n");
+    }
+
     void Run() {
         this->context = boost::make_shared<Context>(IOWorker::GetInstance()->GetContextBy(0));
         auto res = context->InitByFile();
@@ -20,46 +25,51 @@ public:
             return;
         }
 
+        auto self(this->shared_from_this());
         // recv from tun and send to remote
-        context->GetTunDevice()->Spawn([this](TunDevice* tun, boost::asio::yield_context& yield){
-            char read_buffer[1500];
+        context->GetTunDevice()->Spawn([self, connection = this->connection, this](TunDevice* tun, boost::asio::yield_context& yield){
             while(true) {
                 boost::system::error_code ec;
-                auto bytes_read = tun->Read(boost::asio::buffer(read_buffer, 1500), yield[ec]);
-//                for (int i = 0; i < bytes_read; i++) {
-//                    printf("%x ", (unsigned char)read_buffer[i]);
-//                }
-//                printf("\n");
+                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - 4, DEFAULT_TUN_MTU), yield[ec]);
                 if (ec) {
                     printf("read err --> %s\n", ec.message().c_str());
                     return;
                 }
-                printf("read %zu bytes\n", bytes_read);
-                auto bytes_send = this->connection->Send(boost::asio::buffer(read_buffer + 4, bytes_read - 4), yield[ec]);
-                if (ec) {
+                auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - 4), yield[ec]);
+                if (ec.value() == boost::system::errc::operation_canceled || ec.value() == boost::system::errc::bad_file_descriptor) {
                     printf("send err --> %s\n", ec.message().c_str());
                     return;
+                }else if (ec) {
+                    printf("send err --> %s\n", ec.message().c_str());
+                    continue;
                 }
-                printf("send %zu bytes\n", bytes_send);
             }
         });
 
         //recv from remote and send to tun
-        this->connection->Spawn([this](Connection* conn, boost::asio::yield_context yield){
-            char read_buffer[1500];
-            boost::system::error_code ec;
-            auto bytes_read = conn->Receive(boost::asio::buffer(read_buffer, 1500), yield[ec]);
-            if (ec) {
-                printf("recv err --> %s\n", ec.message().c_str());
-                return;
+        this->connection->Spawn([self, connection = this->connection, context = this->context, this](Connection* conn, boost::asio::yield_context yield){
+            while(true) {
+                boost::system::error_code ec;
+                auto bytes_read = conn->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
+                if (ec.value() == boost::system::errc::operation_canceled || ec.value() == boost::system::errc::bad_file_descriptor) {
+                    printf("recv err --> %s\n", ec.message().c_str());
+                    return;
+                }else if (ec) {
+                    printf("recv err --> %s\n", ec.message().c_str());
+                    continue;
+                }
+
+                if (bytes_read == 0) {
+                    printf("decrypt error\n");
+                    continue;
+                }
+                *(uint32_t*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - 4) = 33554432;
+                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() - 4, bytes_read + 4), yield[ec]);
+                if (ec) {
+                    printf("recv err --> %s\n", ec.message().c_str());
+                    return;
+                }
             }
-            printf("recv %zu bytes\n", bytes_read);
-            auto bytes_send = this->context->GetTunDevice()->Write(boost::asio::buffer(read_buffer, bytes_read), yield[ec]);
-            if (ec) {
-                printf("send err --> %s\n", ec.message().c_str());
-                return;
-            }
-            printf("send %zu bytes\n", bytes_send);
         });
         Router::SetClientDefaultRoute(context.get());
 
@@ -67,7 +77,10 @@ public:
 
     void Stop() {
         Router::UnsetClientDefaultRoute(context.get());
-        context.reset();
+        this->connection->Close();
+        this->context->Stop();
+        this->context.reset();
+        this->connection.reset();
     }
 
 private:

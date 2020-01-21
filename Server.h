@@ -1,3 +1,4 @@
+#ifdef __linux__
 #pragma once
 
 #include "connection/Connection.h"
@@ -129,3 +130,4 @@ private:
 void CreateServer(std::string client_tun_ip, uint16_t conn_port) {
 
 }
+#endif

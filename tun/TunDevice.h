@@ -6,6 +6,8 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <atomic>
 
+#define DEFAULT_TUN_MTU 1380
+
 #ifdef __WIN32
 #define TUN_FD HANDLE
 #include <boost/asio/windows/stream_handle.hpp>
