@@ -6,6 +6,7 @@
 #include "state/Context.h"
 #include "utils/IOWorker.h"
 #include "route/Router.h"
+#include "misc/ip.h"
 
 class Client : public boost::enable_shared_from_this<Client> {
 public:
@@ -29,11 +30,12 @@ public:
 
     void Reconnect() {
         if (reconnecting) return;
+        if (!this->connection) return;
+        if (!this->context) return;
         reconnecting = true;
-
         bool res = false;
         while (!res) {
-            res = connection->Connect(context->ServerIPResolved(), context->ServerPort());
+            res = this->connection->Connect(context->ServerIPResolved(), context->ServerPort());
             if (!res) {
                 printf("Connect failed, retrying in 3s\n");
                 sleep(3);
@@ -52,6 +54,10 @@ public:
                     printf("read err --> %s\n", ec.message().c_str());
                     return;
                 }
+
+                if (((iphdr*)connection->GetTunBuffer())->ip_v != 4)
+                    continue;
+
                 auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - 4), yield[ec]);
                 if (ec) {
                     printf("send err --> %s\n", ec.message().c_str());

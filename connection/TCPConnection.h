@@ -178,7 +178,9 @@ public:
         auto self(this->shared_from_this());
         boost::asio::spawn(this->io_context, [self, this](boost::asio::yield_context yield) {
             if (this->async_tasks_running > 0) {
-                this->tcp_socket.close();
+                this->chosen_socket_signal.cancel();
+                if (this->conn_socket)
+                    this->conn_socket->close();
             }
         });
     }
