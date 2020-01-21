@@ -53,19 +53,20 @@ public:
         }
         //recv from client and send to tun
         auto self(this->shared_from_this());
-        this->connection->Spawn([self, context = this->context](Connection* conn, boost::asio::yield_context yield){
-            char read_buffer[1500];
+        this->connection->Spawn([self, connection = this->connection, context = this->context](Connection* conn, boost::asio::yield_context yield){
             while(true) {
                 boost::system::error_code ec;
-
                 boost::asio::ip::udp::endpoint recv_ep;
-                auto bytes_read = conn->ReceiveFrom(boost::asio::buffer(read_buffer, 1500), recv_ep, yield[ec]);
+                auto bytes_read = conn->ReceiveFrom(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), recv_ep, yield[ec]);
                 if (ec) {
                     //printf("recv err --> %s\n", ec.message().c_str());
                     return;
                 }
-
-                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(read_buffer, bytes_read), yield[ec]);
+                if (bytes_read == 0) {
+                    printf("decrypt error\n");
+                    continue;
+                }
+                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), bytes_read), yield[ec]);
                 if (ec) {
                     //printf("send err --> %s\n", ec.message().c_str());
                     return;
@@ -76,15 +77,14 @@ public:
 
         // recv from tun and send to remote
         context->GetTunDevice()->Spawn([self, this, connection = this->connection](TunDevice* tun, boost::asio::yield_context& yield){
-            char read_buffer[1500];
             while(true) {
                 boost::system::error_code ec;
-                auto bytes_read = tun->Read(boost::asio::buffer(read_buffer, 1500), yield[ec]);
+                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer(), DEFAULT_TUN_MTU), yield[ec]);
                 if (ec) {
                     //printf("read err --> %s\n", ec.message().c_str());
                     return;
                 }
-                auto ip_hdr = (iphdr*)&read_buffer[0];
+                auto ip_hdr = (iphdr*)connection->GetTunBuffer();
                 if (ip_hdr->version != 4) {
                     continue;
                 }
@@ -93,7 +93,7 @@ public:
                     continue;
                 }
 
-                auto bytes_send = connection->SendTo(boost::asio::buffer(read_buffer, bytes_read), yield[ec]);
+                auto bytes_send = connection->SendTo(boost::asio::buffer(connection->GetTunBuffer(), bytes_read), yield[ec]);
                 if (ec.value() != boost::system::errc::bad_file_descriptor) {
                     continue;
                 }else {

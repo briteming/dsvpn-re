@@ -30,7 +30,7 @@ public:
         context->GetTunDevice()->Spawn([self, connection = this->connection, this](TunDevice* tun, boost::asio::yield_context& yield){
             while(true) {
                 boost::system::error_code ec;
-                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - 4, DEFAULT_TUN_MTU), yield[ec]);
+                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - 4, DEFAULT_TUN_MTU + 4), yield[ec]);
                 if (ec) {
                     printf("read err --> %s\n", ec.message().c_str());
                     return;
@@ -64,7 +64,7 @@ public:
                     continue;
                 }
                 *(uint32_t*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - 4) = 33554432;
-                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() - 4, bytes_read + 4), yield[ec]);
+                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer((void*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - 4), bytes_read + 4), yield[ec]);
                 if (ec) {
                     printf("recv err --> %s\n", ec.message().c_str());
                     return;
