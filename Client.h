@@ -80,7 +80,9 @@ public:
                 auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);
                 if (ec) {
                     printf("send err --> %s\n", ec.message().c_str());
-                    Reconnect();
+                    if (this->context->ConnProtocol() == ConnProtocolType::TCP) {
+                        Reconnect();
+                    }
                     return;
                 }
             }
@@ -93,7 +95,9 @@ public:
                 auto bytes_read = connection->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
                 if (ec) {
                     printf("recv err --> %s\n", ec.message().c_str());
-                    Reconnect();
+                    if (this->context->ConnProtocol() == ConnProtocolType::TCP) {
+                        Reconnect();
+                    }
                     return;
                 }
 
