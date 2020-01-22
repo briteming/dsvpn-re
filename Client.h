@@ -74,7 +74,7 @@ public:
                     return;
                 }
 
-                if (((iphdr*)connection->GetTunBuffer())->ip_v != 4)
+                if (((iphdr*)connection->GetTunBuffer())->ip_v != 4 && ((iphdr*)connection->GetTunBuffer())->ip_v != 6)
                     continue;
 
                 auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);
@@ -101,11 +101,13 @@ public:
                     printf("decrypt error\n");
                     continue;
                 }
+#ifdef __APPLE__
                 *(uint32_t*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - TUN_PACKET_HL) = 33554432;
+#endif
                 auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer((void*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - TUN_PACKET_HL), bytes_read + TUN_PACKET_HL), yield[ec]);
                 if (ec) {
                     printf("recv err --> %s\n", ec.message().c_str());
-                    return;
+                    continue;
                 }
             }
         });

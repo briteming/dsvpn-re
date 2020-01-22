@@ -7,7 +7,7 @@ int main() {
     auto res = sodium_init();
     if (res != 0) return -1;
     IOWorker::GetInstance()->AsyncRun();
-//    CreateServer(DEFAULT_CLIENT_IP, 1900, "12345678");
+//    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
 //    getchar();
 //    DestroyServer(1800);
 //    getchar();

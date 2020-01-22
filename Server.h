@@ -10,7 +10,13 @@
 #include "state/ContextHelper.h"
 #include "state/Constant.h"
 #include "misc/ip.h"
+#include <linux/ipv6.h>
 #include <boost/enable_shared_from_this.hpp>
+
+static inline int ipv6_addr_compare(const struct in6_addr *a1, const struct in6_addr *a2)
+{
+    return memcmp(a1, a2, sizeof(struct in6_addr));
+}
 
 class Server : public boost::enable_shared_from_this<Server> {
     const std::string vpn_default_if_name = "dsvpn";
@@ -51,6 +57,8 @@ public:
             return;
         }
         this->client_tun_ip_integer = inet_addr(this->context->RemoteTunIP().c_str());
+        inet_pton(AF_INET6, this->context->RemoteTunIP6().c_str(), &this->client_tun_ip6_integer.sin6_addr);
+
         switch (this->context->ConnProtocol()) {
             case ConnProtocolType::UDP: {
                 this->connection = boost::make_shared<UDPConnection>(IOWorker::GetInstance()->GetContextBy(this->io_index), this->context->ConnKey());
@@ -105,12 +113,21 @@ public:
                     return;
                 }
                 auto ip_hdr = (iphdr*)connection->GetTunBuffer();
-                if (ip_hdr->ip_v != 4) {
+                if (ip_hdr->ip_v != 4 && ip_hdr->ip_v != 6) {
                     continue;
                 }
-                auto dst = inet_ntoa(ip_hdr->ip_dst);
-                if (ip_hdr->ip_dst.s_addr != this->client_tun_ip_integer) {
-                    continue;
+
+                if (ip_hdr->ip_v == 4) {
+                    if (ip_hdr->ip_dst.s_addr != this->client_tun_ip_integer) {
+                        continue;
+                    }
+                }
+
+                if (ip_hdr->ip_v == 6) {
+                    auto ipv6_hdr = (ipv6hdr*)connection->GetTunBuffer();
+                    if (ipv6_addr_compare(&this->client_tun_ip6_integer.sin6_addr, &ipv6_hdr->daddr) != 0) {
+                        continue;
+                    }
                 }
 
                 auto bytes_send = connection->SendTo(boost::asio::buffer(connection->GetTunBuffer(), bytes_read), yield[ec]);
@@ -139,6 +156,7 @@ public:
 private:
     uint8_t io_index = 0;
     uint32_t client_tun_ip_integer;
+    sockaddr_in6 client_tun_ip6_integer;
     boost::shared_ptr<Context> context;
     boost::shared_ptr<IConnection> connection;
 };
