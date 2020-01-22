@@ -42,9 +42,8 @@ public:
                 return;
             }
         }
-        Reconnect();
         Router::SetClientDefaultRoute(context.get());
-
+        Reconnect();
     }
 
     void Reconnect() {
@@ -83,7 +82,7 @@ public:
                         Reconnect();
                         continue;
                     }
-                    return;
+                    continue;
                 }
             }
         });
