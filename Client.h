@@ -48,10 +48,9 @@ public:
     }
 
     void Reconnect() {
-        if (reconnecting) return;
+        std::lock_guard<std::mutex> lg(this->connect_mutex);
         if (!this->connection) return;
         if (!this->context) return;
-        reconnecting = true;
         bool res = false;
         while (!res) {
             res = this->connection->Connect(context->ServerIPResolved(), context->ServerPort());
@@ -80,8 +79,9 @@ public:
                 auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);
                 if (ec) {
                     printf("send err --> %s\n", ec.message().c_str());
-                    if (this->context->ConnProtocol() == ConnProtocolType::TCP) {
+                    if (this->context && this->context->ConnProtocol() == ConnProtocolType::TCP) {
                         Reconnect();
+                        continue;
                     }
                     return;
                 }
@@ -95,7 +95,7 @@ public:
                 auto bytes_read = connection->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
                 if (ec) {
                     printf("recv err --> %s\n", ec.message().c_str());
-                    if (this->context->ConnProtocol() == ConnProtocolType::TCP) {
+                    if (this->context && this->context->ConnProtocol() == ConnProtocolType::TCP) {
                         Reconnect();
                     }
                     return;
@@ -106,7 +106,11 @@ public:
                     continue;
                 }
 #ifdef __APPLE__
-                *(uint32_t*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - TUN_PACKET_HL) = 33554432;
+                auto ip_header = (iphdr*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize());
+                if (ip_header->ip_v == 4)
+                    *(uint32_t*)((char*)ip_header - TUN_PACKET_HL) = 33554432;
+                else if (ip_header->ip_v == 6)
+                    *(uint32_t*)((char*)ip_header - TUN_PACKET_HL) = 503316480;
 #endif
                 auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer((void*)(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize() - TUN_PACKET_HL), bytes_read + TUN_PACKET_HL), yield[ec]);
                 if (ec) {
@@ -115,7 +119,6 @@ public:
                 }
             }
         });
-        reconnecting = false;
     }
 
     void Stop() {
@@ -129,5 +132,5 @@ public:
 private:
     boost::shared_ptr<Context> context;
     boost::shared_ptr<IConnection> connection;
-    std::atomic_bool reconnecting = false;
+    std::mutex connect_mutex;
 };

@@ -10,8 +10,8 @@ bool route_client_set_default(Context* context) {
     std::string add_default_gw_command = "route add $EXT_IP $EXT_GW_IP";
     std::string add_default_gw_command2 = "route add 0/1 $REMOTE_TUN_IP";
     std::string add_default_gw_command3 = "route add 128/1 $REMOTE_TUN_IP";
-    std::string add_default_gw_command4 = "route add -inet6 -blackhole 0000::/1 $REMOTE_TUN_IP6";
-    std::string add_default_gw_command5 = "route add -inet6 -blackhole 8000::/1 $REMOTE_TUN_IP6";
+    std::string add_default_gw_command4 = "route add -inet6 0000::/1 $REMOTE_TUN_IP6";
+    std::string add_default_gw_command5 = "route add -inet6 8000::/1 $REMOTE_TUN_IP6";
 
     boost::replace_first(add_default_gw_command, "$EXT_IP", context->ServerIPResolved());
     boost::replace_first(add_default_gw_command, "$EXT_GW_IP", Router::GetDefaultGatewayIp());
