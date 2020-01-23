@@ -10,13 +10,13 @@ struct ProtocolHeader {
     uint32_t PAYLOAD_LENGTH;
     uint32_t PADDING_LENGTH;
 
-    static uint8_t ProtocolHeaderSize() {
+    static uint8_t Size() {
         return sizeof(ProtocolHeader);
     }
 
     unsigned char* Payload()
     {
-        return NONCE + ProtocolHeaderSize();
+        return NONCE + Size();
     }
 
 };

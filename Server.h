@@ -84,7 +84,7 @@ public:
         this->connection->Spawn([self, connection = this->connection, context = this->context](boost::asio::yield_context yield){
             while(true) {
                 boost::system::error_code ec;
-                auto bytes_read = connection->ReceiveFrom(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
+                auto bytes_read = connection->ReceiveFrom(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::Size()), yield[ec]);
                 if (ec) {
                     //printf("recv err --> %s\n", ec.message().c_str());
                     return;
@@ -94,7 +94,7 @@ public:
                     continue;
                 }
 
-                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), bytes_read), yield[ec]);
+                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() + ProtocolHeader::Size(), bytes_read), yield[ec]);
                 if (ec) {
                     printf("send err --> %s\n", ec.message().c_str());
                     return;

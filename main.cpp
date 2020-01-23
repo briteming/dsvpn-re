@@ -3,7 +3,6 @@
 #include "Server.h"
 #include <sodium.h>
 int main() {
-
     auto res = sodium_init();
     if (res != 0) return -1;
     IOWorker::GetInstance()->AsyncRun();

@@ -70,7 +70,7 @@ public:
             size_t bytes_read;
             boost::system::error_code ec;
             bytes_read = boost::asio::async_read(*conn_socket, boost::asio::buffer(
-                    this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield[ec]);
+                    this->GetConnBuffer(), ProtocolHeader::Size()), yield[ec]);
             if (ec) {
                 printf("error --> %s\n", ec.message().c_str());
             }
@@ -79,7 +79,7 @@ public:
             payload_len = this->protocol.DecryptHeader(header);
             if (payload_len == 0) return;
             bytes_read = boost::asio::async_read(*conn_socket, boost::asio::buffer(
-                    this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
+                    this->GetConnBuffer() + ProtocolHeader::Size(), header->PAYLOAD_LENGTH), yield);
             if (bytes_read == 0) return;
             // if we can decode the payload successfully, the conn_socket is chosen
             if (this->protocol.DecryptPayload(header)) {}
@@ -95,14 +95,14 @@ public:
     }
 
     virtual size_t Send(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
-        auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
+        auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::Size());
         header->PAYLOAD_LENGTH = buffer.size();
         header->PADDING_LENGTH = 0;
         this->protocol.EncryptPayload(header);
         auto payload_len = this->protocol.EncryptHeader(header);
 
         auto bytes_send = boost::asio::async_write(*this->conn_socket,
-                boost::asio::buffer((void*)header, payload_len + ProtocolHeader::ProtocolHeaderSize()), yield);
+                boost::asio::buffer((void*)header, payload_len + ProtocolHeader::Size()), yield);
         return bytes_send;
     }
 
@@ -118,7 +118,7 @@ public:
         size_t bytes_read;
 
         bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
-                this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
+                this->GetConnBuffer(), ProtocolHeader::Size()), yield);
         if (bytes_read == 0) return 0;
         //recheck chosen socket
         if (!this->conn_socket) return 0;
@@ -126,7 +126,7 @@ public:
         payload_len = this->protocol.DecryptHeader(header);
         if (payload_len == 0) return 0;
         bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
-                this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
+                this->GetConnBuffer() + ProtocolHeader::Size(), header->PAYLOAD_LENGTH), yield);
         if (bytes_read == 0) return 0;
         if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
         return 0;
@@ -136,12 +136,12 @@ public:
     // if conn never ReceiveFrom packet before, the sendto will fail
     virtual size_t SendTo(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
         if (!conn_socket) return 0;
-        auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::ProtocolHeaderSize());
+        auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::Size());
         header->PAYLOAD_LENGTH = buffer.size();
         header->PADDING_LENGTH = 0;
         this->protocol.EncryptPayload(header);
         auto payload_len = this->protocol.EncryptHeader(header);
-        return boost::asio::async_write(*this->conn_socket, boost::asio::buffer((void *) header, payload_len + ProtocolHeader::ProtocolHeaderSize()), yield);
+        return boost::asio::async_write(*this->conn_socket, boost::asio::buffer((void *) header, payload_len + ProtocolHeader::Size()), yield);
     }
 
     virtual size_t ReceiveFrom(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
@@ -161,7 +161,7 @@ public:
             size_t bytes_read;
 
             bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
-                    this->GetConnBuffer(), ProtocolHeader::ProtocolHeaderSize()), yield);
+                    this->GetConnBuffer(), ProtocolHeader::Size()), yield);
             if (bytes_read == 0) continue;
             //recheck chosen socket
             if (!this->conn_socket) continue;
@@ -169,7 +169,7 @@ public:
             payload_len = this->protocol.DecryptHeader(header);
             if (payload_len == 0) continue;
             bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
-                    this->GetConnBuffer() + ProtocolHeader::ProtocolHeaderSize(), header->PAYLOAD_LENGTH), yield);
+                    this->GetConnBuffer() + ProtocolHeader::Size(), header->PAYLOAD_LENGTH), yield);
             if (bytes_read == 0) continue;
             if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
         }
