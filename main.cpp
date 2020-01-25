@@ -17,6 +17,8 @@ void signal_handler(int signal)
         client.reset();
     }
 
+    DestroyServer(1800);
+
     IOWorker::GetInstance()->Stop();
     SPDLOG_INFO("Stopping");
 }
@@ -43,12 +45,9 @@ int main() {
         return -1;
     }
 
-//    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
-//    getchar();
-//    DestroyServer(1800);
-//    getchar();
+    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
 
-    client = boost::make_shared<Client>();
-    client->Run();
+//    client = boost::make_shared<Client>();
+//    client->Run();
     IOWorker::GetInstance()->Run();
 }

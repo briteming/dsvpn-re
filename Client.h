@@ -8,6 +8,7 @@
 #include "utils/NetworkCheck.h"
 #include "route/Router.h"
 #include "misc/ip.h"
+#include <mutex>
 
 #ifdef __APPLE__
 #define TUN_PACKET_HL 4

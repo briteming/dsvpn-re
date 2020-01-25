@@ -2,6 +2,7 @@
 
 #include <sodium.h>
 #include <string>
+#include <cstring>
 #define IN
 #define OUT
 class AES256GCM {
