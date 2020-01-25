@@ -29,6 +29,7 @@ struct context_detail {
     std::string conn_key = "12345678";
     uint16_t    server_port = 1800;
     ConnProtocolType conn_protocol = ConnProtocolType::UDP;
+    bool ipv6 = false;
 };
 
 class Context {
@@ -54,6 +55,7 @@ public:
     auto& ServerIPResolved() const { return this->detail.server_ip_resolved; }
     auto& ServerPort() const { return this->detail.server_port; }
     auto& ConnKey() const { return this->detail.conn_key; }
+    auto& IPv6() const { return this->detail.ipv6; }
     ConnProtocolType ConnProtocol() const { return this->detail.conn_protocol; }
     boost::asio::io_context& GetIO() {
         return this->tun_device->GetIO();

@@ -43,6 +43,11 @@ bool Context::InitByFile() {
         return false;
     }
 
+    res = h.Parse<std::string>("ipv6");
+    if (res.error || (!res.error && res.value == "true")) {
+        this->detail.ipv6 = true;
+    }
+
     res = h.Parse<std::string>("tun.local_tun_ip");
     if (res.error || (!res.error && res.value == "auto")) {
         this->detail.local_tun_ip = this->detail.is_server ? DEFAULT_SERVER_IP : DEFAULT_CLIENT_IP;
