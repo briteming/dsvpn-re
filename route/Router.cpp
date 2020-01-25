@@ -2,6 +2,7 @@
 #include "../utils/Shell.h"
 #include "../utils/Trim.h"
 #include "RouterImpl.h"
+#include <spdlog/spdlog.h>
 
 std::string Router::GetDefaultGatewayIp() {
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
@@ -26,10 +27,12 @@ std::string Router::GetDefaultInterfaceName() {
 }
 
 bool Router::SetClientDefaultRoute(Context* context) {
+    SPDLOG_INFO("Setting Route Table");
     return route_client_set_default(context);
 }
 
 bool Router::UnsetClientDefaultRoute(Context* context) {
+    SPDLOG_INFO("Resetting Route Table");
     return route_client_unset_default(context);
 }
 

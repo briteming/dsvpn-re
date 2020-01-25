@@ -9,6 +9,7 @@
 #include "Constant.h"
 #include <boost/config.hpp>
 #include "../route/Router.h"
+#include <spdlog/spdlog.h>
 
 std::string ConnProtocolTypeToString(ConnProtocolType type) {
     switch(type) {
@@ -24,21 +25,21 @@ std::string ConnProtocolTypeToString(ConnProtocolType type) {
 }
 
 Context::~Context() {
-    printf("context die\n");
+    SPDLOG_DEBUG("Context die");
 }
 
 bool Context::InitByFile() {
     YamlHelper h;
     auto res = h.Parse<std::string>("is_server");
     if (res.error) {
-        printf("is_server not set\n");
+        SPDLOG_INFO("is_server not set");
         return false;
     }
 
     this->detail.is_server = res.value == "true";
 
     if (this->detail.is_server && BOOST_PLATFORM != "linux") {
-        printf("should run server on linux\n");
+        SPDLOG_INFO("should run server on linux");
         return false;
     }
 
@@ -69,7 +70,7 @@ bool Context::InitByFile() {
 
     res = h.Parse<std::string>("conn_key");
     if (res.error) {
-        printf("conn_key not set\n");
+        SPDLOG_INFO("conn_key not set");
         return false;
     }
 
@@ -77,7 +78,7 @@ bool Context::InitByFile() {
 
     res = h.Parse<std::string>("conn_protocol");
     if (res.error) {
-        printf("conn_protocol not set\n");
+        SPDLOG_INFO("conn_protocol not set");
         return false;
     }
 
@@ -89,11 +90,13 @@ bool Context::InitByFile() {
     }
     if (res.value == "utcp") {
         this->detail.conn_protocol = ConnProtocolType::UTCP;
+        SPDLOG_INFO("utcp protocol is not support yet");
+        return false;
     }
 
     res = h.Parse<std::string>("server_ip_or_name");
     if (res.error) {
-        printf("server_ip_or_name not set\n");
+        SPDLOG_INFO("server_ip_or_name not set");
         return false;
     }
 
@@ -101,13 +104,13 @@ bool Context::InitByFile() {
 
     auto resolve_res = resolve_ip(this->detail.server_ip_or_name, this->detail.server_ip_resolved);
     if (!resolve_res) {
-        printf("resolve_ip error\n");
+        SPDLOG_INFO("resolve_ip error");
         return false;
     }
 
     auto portRes = h.Parse<uint16_t>("server_port");
     if (res.error) {
-        printf("server_port not set\n");
+        SPDLOG_INFO("server_port not set");
         return false;
     }
     this->detail.server_port = portRes.value;

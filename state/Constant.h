@@ -1,5 +1,5 @@
 #pragma once
-
+#define DSVPN_VERSION "0.0.1"
 #define DEFAULT_MTU 1500
 
 #define RECONNECT_ATTEMPTS 100

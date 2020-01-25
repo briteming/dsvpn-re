@@ -26,3 +26,7 @@ std::string Shell::Run(std::string command) {
     }
     return result;
 }
+
+void Shell::RunNoResult(std::string command) {
+    system(command.c_str());
+}

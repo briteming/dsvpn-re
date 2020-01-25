@@ -47,6 +47,7 @@ public:
 
     void Stop() {
         for(int i = 0; i < boost::thread::hardware_concurrency(); i++) {
+            workers[i].reset();
             io_contexts[i].stop();
         }
     }

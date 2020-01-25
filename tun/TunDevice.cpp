@@ -5,9 +5,14 @@
 #include "TunDevice.h"
 #include "TunDeviceImpl.h"
 #include <boost/asio/read.hpp>
+#include <spdlog/spdlog.h>
 
 TunDevice::TunDevice(boost::asio::io_context &io) : io_context(io) {
     this->asio_fd = std::make_unique<ASIO_FD>(this->io_context);
+}
+
+TunDevice::~TunDevice() {
+    SPDLOG_DEBUG("TunDevice die");
 }
 
 bool TunDevice::Create(const char *wanted_name) {
@@ -19,6 +24,7 @@ bool TunDevice::Create(const char *wanted_name) {
         this->asio_fd->assign(this->tun_fd);
         return fd;
     }else {
+        SPDLOG_INFO("TunDevice::Create failed");
         return -1;
     }
 }
@@ -36,6 +42,7 @@ bool TunDevice::Close(Context* context) {
             tun_remove(context);
         }
     });
+    return true;
 }
 
 bool TunDevice::SetMTU(int mtu) {
@@ -49,6 +56,7 @@ bool TunDevice::SetMTU(int mtu) {
     snprintf(ifr.ifr_name, IFNAMSIZ, "%s", this->tun_name.c_str());
     if (ioctl(fd, SIOCSIFMTU, &ifr) != 0) {
         close(fd);
+        SPDLOG_INFO("TunDevice::SetMTU failed");
         return false;
     }
     close(fd);

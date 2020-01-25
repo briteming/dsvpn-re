@@ -5,6 +5,7 @@
 #include "connection/TCPConnection.h"
 #include "state/Context.h"
 #include "utils/IOWorker.h"
+#include "utils/NetworkCheck.h"
 #include "route/Router.h"
 #include "misc/ip.h"
 
@@ -17,110 +18,19 @@
 class Client : public boost::enable_shared_from_this<Client> {
 public:
 
-    ~Client() {
-        printf("client die\n");
-    }
+    ~Client();
 
-    void Run() {
-        this->context = boost::make_shared<Context>(IOWorker::GetInstance()->GetContextBy(0));
-        auto res = context->InitByFile();
-        if (!res) {
-            return;
-        }
+    void Run();
 
-        Reconnect();
-        Router::SetClientDefaultRoute(context.get());
-    }
+    void Reconnect();
 
-    void Reconnect() {
-        std::lock_guard<std::mutex> lg(this->connect_mutex);
-        sleep(2);
-        if (!this->context) return;
-        bool res = false;
-        if (this->connection) {
-            this->connection->Close();
-            this->connection.reset();
-        }
-        makeConnection();
-        while (!res) {
-            res = this->connection->Connect(context->ServerIPResolved(), context->ServerPort());
-            if (!res) {
-                printf("Connect failed, retrying in 3s\n");
-            }else {
-                printf("Connected to %s:%d\n",context->ServerIPResolved().c_str(), context->ServerPort());
-            }
-        }
-
-        auto self(this->shared_from_this());
-        // recv from tun and send to remote
-        context->GetTunDevice()->Spawn([self, connection = this->connection, this](TunDevice* tun, boost::asio::yield_context& yield){
-            while(true) {
-                boost::system::error_code ec;
-                auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - TUN_PACKET_HL, DEFAULT_TUN_MTU + TUN_PACKET_HL), yield[ec]);
-                if (ec) {
-                    printf("read err --> %s\n", ec.message().c_str());
-                    return;
-                }
-
-                // don't tunnel none ip packet
-                if (((iphdr*)connection->GetTunBuffer())->ip_v != 4 && ((iphdr*)connection->GetTunBuffer())->ip_v != 6)
-                    continue;
-
-                auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);
-                if (ec) {
-                    printf("send err --> %s\n", ec.message().c_str());
-                    Reconnect();
-                    return;
-                }
-            }
-        });
-
-        //recv from remote and send to tun
-        this->connection->Spawn([self, connection = this->connection, context = this->context, this](boost::asio::yield_context yield){
-            while(true) {
-                boost::system::error_code ec;
-                auto bytes_read = connection->Receive(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::Size()), yield[ec]);
-                if (ec) {
-                    printf("recv err --> %s\n", ec.message().c_str());
-                    if (this->context && this->context->ConnProtocol() == ConnProtocolType::TCP) {
-                        Reconnect();
-                    }
-                    return;
-                }
-
-                if (bytes_read == 0) {
-                    printf("decrypt error\n");
-                    continue;
-                }
-#ifdef __APPLE__
-                auto ip_header = (iphdr*)(connection->GetConnBuffer() + ProtocolHeader::Size());
-                if (ip_header->ip_v == 4)
-                    *(uint32_t*)((char*)ip_header - TUN_PACKET_HL) = 33554432;
-                else if (ip_header->ip_v == 6)
-                    *(uint32_t*)((char*)ip_header - TUN_PACKET_HL) = 503316480;
-#endif
-                auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer((void*)(connection->GetConnBuffer() + ProtocolHeader::Size() - TUN_PACKET_HL), bytes_read + TUN_PACKET_HL), yield[ec]);
-                if (ec) {
-                    printf("recv err --> %s\n", ec.message().c_str());
-                    continue;
-                }
-            }
-        });
-    }
-
-    void Stop() {
-        Router::UnsetClientDefaultRoute(context.get());
-        this->connection->Close();
-        this->context->Stop();
-        this->context.reset();
-        this->connection.reset();
-    }
+    void Stop();
 
 private:
     boost::shared_ptr<Context> context;
     boost::shared_ptr<IConnection> connection;
     std::mutex connect_mutex;
-
+    std::atomic_bool stopped = false;
     void makeConnection() {
         switch (this->context->ConnProtocol()) {
             case ConnProtocolType::UDP: {

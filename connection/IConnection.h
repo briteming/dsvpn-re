@@ -52,11 +52,13 @@ public:
         return this->conn_recv_buffer;
     }
 
+
 protected:
     boost::asio::io_context& io_context;
     std::atomic_int64_t async_tasks_running = 0;
     char tun_recv_buffer[MAX_BUFFSIZE + 500] = {0};
     char conn_recv_buffer[MAX_BUFFSIZE + 500] = {0};
     Protocol protocol;
+
 };
 
