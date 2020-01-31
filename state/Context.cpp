@@ -51,6 +51,8 @@ bool Context::InitByFile() {
     res = h.Parse<std::string>("tun.local_tun_ip");
     if (res.error || (!res.error && res.value == "auto")) {
         this->detail.local_tun_ip = this->detail.is_server ? DEFAULT_SERVER_IP : DEFAULT_CLIENT_IP;
+    }else {
+        this->detail.local_tun_ip = res.value;
     }
 
     res = h.Parse<std::string>("tun.remote_tun_ip");

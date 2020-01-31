@@ -17,7 +17,8 @@ void signal_handler(int signal)
         client.reset();
     }
 
-    // DestroyServer(1800);
+//    DestroyServer(1800);
+//    DestroyServer(1900);
 
     IOWorker::GetInstance()->Stop();
     SPDLOG_INFO("Stopping");
@@ -25,7 +26,7 @@ void signal_handler(int signal)
 
 int main() {
     spdlog::set_pattern("[%Y-%m-%d %T] [%^%l%$] %v");
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     SPDLOG_INFO("DSVPN-REIMPL[{}] is an OpenSource project [https://code.dllexport.com/mario/dsvpn-reimpl]", DSVPN_VERSION);
     SPDLOG_INFO("DSVPN is the original project [https://github.com/jedisct1/dsvpn]");
 
@@ -45,7 +46,8 @@ int main() {
         return -1;
     }
 
-    //CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
+//    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
+//    CreateServer("192.168.192.120", 1900, "12345678");
 
     client = boost::make_shared<Client>();
     client->Run();

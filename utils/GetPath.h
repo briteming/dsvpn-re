@@ -2,7 +2,7 @@
 
 #include <string>
 #include <boost/predef/os.h>
-#include <filesystem>
+#include <boost/filesystem.hpp>
 #if (BOOST_OS_WINDOWS)
 #  include <stdlib.h>
 #elif (BOOST_OS_SOLARIS)
@@ -57,5 +57,5 @@ std::string GetExecutablePath() {
     if (sysctl(mib, 4, exePath, &len, NULL, 0) != 0)
         exePath[0] = '\0';
 #endif
-    return strlen(exePath) > 0 ? std::filesystem::path(exePath).remove_filename().make_preferred().string() : std::string();
+    return strlen(exePath) > 0 ? boost::filesystem::path(exePath).remove_filename().make_preferred().string() : std::string();
 }

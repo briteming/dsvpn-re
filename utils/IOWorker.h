@@ -36,7 +36,7 @@ public:
     }
 
     void AsyncRun() {
-        boost::lock_guard(this->mutex);
+        boost::lock_guard<boost::mutex>(this->mutex);
         if (thread_group.size() != 0) return;
         for(int i = 0; i < boost::thread::hardware_concurrency(); i++) {
             thread_group.create_thread([io = &io_contexts[i]](){
