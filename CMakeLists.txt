@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10.2)
 project(dsvpn_reimpl)
 
 add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(/usr/local/include)
 include_directories(/usr/local/Cellar/boost/1.70.0/include)

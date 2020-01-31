@@ -9,6 +9,7 @@
 #include <linux/ipv6.h>
 #include <spdlog/spdlog.h>
 #include "utils/Shell.h"
+#include <arpa/inet.h>
 
 static inline int ipv6_addr_compare(const struct in6_addr *a1, const struct in6_addr *a2)
 {
@@ -78,7 +79,7 @@ void Server::Run() {
     this->connection->Accept();
     //recv from client and send to tun
     auto self(this->shared_from_this());
-    this->connection->Spawn([self, connection = this->connection, context = this->context](boost::asio::yield_context yield){
+    this->connection->Spawn([self, this, connection = this->connection, context = this->context](boost::asio::yield_context yield){
         while(true) {
             boost::system::error_code ec;
             auto bytes_read = connection->ReceiveFrom(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::Size()), yield[ec]);
@@ -89,6 +90,27 @@ void Server::Run() {
             if (bytes_read == 0) {
                 SPDLOG_INFO("decrypt error");
                 continue;
+            }
+
+            auto ip_hdr = (iphdr*)(connection->GetConnBuffer() + ProtocolHeader::Size());
+            if (ip_hdr->ip_v != 4 && ip_hdr->ip_v != 6) {
+                SPDLOG_DEBUG("[{}] recv none ip packet", this->context->ServerPort());
+                continue;
+            }
+
+            if (ip_hdr->ip_v == 4) {
+                if (ip_hdr->ip_src.s_addr != this->client_tun_ip_integer) {
+                    SPDLOG_DEBUG("[{}] Local Tun IPv4 mismatch, config {}, get {}", this->context->ServerPort(), this->context->RemoteTunIP(), std::string(inet_ntoa(ip_hdr->ip_src)));
+                    continue;
+                }
+            }
+
+            if (ip_hdr->ip_v == 6) {
+                auto ipv6_hdr = (ipv6hdr*)ip_hdr;
+                if (ipv6_addr_compare(&this->client_tun_ip6_integer.sin6_addr, &ipv6_hdr->daddr) != 0) {
+                    SPDLOG_DEBUG("[{}] Local Tun IPv6 mismatch");
+                    continue;
+                }
             }
 
             auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() + ProtocolHeader::Size(), bytes_read), yield[ec]);
@@ -121,7 +143,7 @@ void Server::Run() {
             }
 
             if (ip_hdr->ip_v == 6) {
-                auto ipv6_hdr = (ipv6hdr*)connection->GetTunBuffer();
+                auto ipv6_hdr = (ipv6hdr*)ip_hdr;
                 if (ipv6_addr_compare(&this->client_tun_ip6_integer.sin6_addr, &ipv6_hdr->daddr) != 0) {
                     continue;
                 }
