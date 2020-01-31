@@ -17,7 +17,7 @@ void signal_handler(int signal)
         client.reset();
     }
 
-    DestroyServer(1800);
+    // DestroyServer(1800);
 
     IOWorker::GetInstance()->Stop();
     SPDLOG_INFO("Stopping");
@@ -37,7 +37,7 @@ int main() {
     SingleApp::Check();
 
     std::signal(SIGINT, signal_handler);
-    std::signal(SIGTERM, signal_handler);
+//    std::signal(SIGSTOP, signal_handler);
 
     auto res = sodium_init();
     if (res != 0) {
@@ -45,9 +45,9 @@ int main() {
         return -1;
     }
 
-    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
+    //CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
 
-//    client = boost::make_shared<Client>();
-//    client->Run();
+    client = boost::make_shared<Client>();
+    client->Run();
     IOWorker::GetInstance()->Run();
 }
