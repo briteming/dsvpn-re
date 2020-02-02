@@ -1,7 +1,7 @@
 is_server: false
 
-server_ip_or_name: 108.61.181.123
+server_ip_or_name: 112.74.160.183
 server_port: 1800
 conn_key: 12345678
 conn_protocol: udp
-ipv6: true
+ipv6: false
