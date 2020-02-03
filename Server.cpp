@@ -113,6 +113,16 @@ void Server::Run() {
                 }
             }
 
+            // if subnet
+            if (0)
+            {
+                std::lock_guard<std::mutex> lg(server_mutex);
+                auto it = server_map_tun_ip.find(ip_hdr->ip_src.s_addr);
+                if (it == server_map_tun_ip.end()) continue;
+                const auto& other_host = it->second->Connection();
+
+            }
+            //
             auto bytes_send = context->GetTunDevice()->Write(boost::asio::buffer(connection->GetConnBuffer() + ProtocolHeader::Size(), bytes_read), yield[ec]);
             if (ec) {
                 SPDLOG_DEBUG("send err --> {}", ec.message().c_str());
@@ -172,6 +182,13 @@ void Server::Stop() {
     this->context.reset();
 }
 
+boost::shared_ptr<Context> Server::Context() {
+    return this->context;
+}
+
+boost::shared_ptr<IConnection> Server::Connection() {
+    return this->connection;
+}
 
 bool CreateServer(std::string client_tun_ip, uint16_t conn_port, std::string conn_key) {
     std::lock_guard<std::mutex> lg(server_mutex);
@@ -179,8 +196,9 @@ bool CreateServer(std::string client_tun_ip, uint16_t conn_port, std::string con
         SPDLOG_INFO("server already exist");
         return false;
     }
-    auto server = boost::make_shared<Server>(client_tun_ip, conn_port, conn_key);
+    auto server = boost::make_shared<Server>(client_tun_ip.c_str(), conn_port, conn_key);
     server_map.insert({conn_port, server});
+    server_map_tun_ip.insert({inet_addr(client_tun_ip.c_str()), server});
     server->Run();
     return true;
 }
@@ -189,10 +207,17 @@ bool DestroyServer(uint16_t conn_port) {
     std::lock_guard<std::mutex> lg(server_mutex);
     auto it = server_map.find(conn_port);
     if ( it == server_map.end()) {
-        SPDLOG_INFO("server not exist");
+        SPDLOG_INFO("server not found in server_map");
         return false;
     }
     it->second->Stop();
+
+    auto it2 = server_map_tun_ip.find(inet_addr(it->second->Context()->RemoteTunIP().c_str()));
+    if ( it == server_map.end()) {
+        SPDLOG_INFO("server not found in server_map_tun_ip");
+        return false;
+    }
+    server_map_tun_ip.erase(it2);
     server_map.erase(it);
     return true;
 }
