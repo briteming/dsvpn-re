@@ -53,7 +53,7 @@ size_t UDPConnection::Receive(boost::asio::mutable_buffer&& buffer, boost::asio:
 // send to the last received ep
 // if conn never ReceiveFrom packet before, the sendto will fail
 size_t UDPConnection::SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-    auto header = (ProtocolHeader*)(this->GetTunBuffer() - ProtocolHeader::Size());
+    auto header = (ProtocolHeader*)((char*)buffer.data() - ProtocolHeader::Size());
     header->PAYLOAD_LENGTH = buffer.size();
     header->PADDING_LENGTH = 0;
     this->protocol.EncryptPayload(header);
