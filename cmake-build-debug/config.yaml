@@ -1,6 +1,6 @@
 is_server: false
 
-ipv6: true
+ipv6: false
 
 tun:
   if_name: auto
@@ -16,7 +16,7 @@ route:
 conn_key: 12345678
 conn_protocol: udp
 
-server_ip_or_name: 104.237.11.44
+server_ip_or_name: 108.21.112.76
 server_port: 1800
 
 
