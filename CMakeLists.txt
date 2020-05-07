@@ -5,7 +5,6 @@ add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(/usr/local/include)
-include_directories(/usr/local/Cellar/boost/1.70.0/include)
 
 link_libraries(/usr/local/lib/libyaml-cpp.a)
 link_libraries(/usr/local/lib/libspdlog.a)

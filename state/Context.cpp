@@ -39,13 +39,19 @@ bool Context::InitByFile() {
     this->detail.is_server = res.value == "true";
 
     if (this->detail.is_server && BOOST_PLATFORM != "linux") {
-        SPDLOG_INFO("should run server on linux");
+        SPDLOG_INFO("should only run server on linux");
         return false;
     }
 
     res = h.Parse<std::string>("ipv6");
     if (res.error || (!res.error && res.value == "true")) {
         this->detail.ipv6 = true;
+    }
+
+    res = h.Parse<std::string>("tun.mtu");
+    if (res.error || (!res.error && res.value == "auto")) {}
+    else {
+        this->detail.mtu = std::atoi(res.value.c_str());
     }
 
     res = h.Parse<std::string>("tun.local_tun_ip");
@@ -77,7 +83,7 @@ bool Context::InitByFile() {
 
     res = h.Parse<std::string>("conn_key");
     if (res.error) {
-        SPDLOG_INFO("conn_key not set");
+        SPDLOG_INFO("conn_key is required");
         return false;
     }
 
@@ -85,7 +91,7 @@ bool Context::InitByFile() {
 
     res = h.Parse<std::string>("conn_protocol");
     if (res.error) {
-        SPDLOG_INFO("conn_protocol not set");
+        SPDLOG_INFO("conn_protocol is required");
         return false;
     }
 
@@ -117,7 +123,7 @@ bool Context::InitByFile() {
 
     auto portRes = h.Parse<uint16_t>("server_port");
     if (res.error) {
-        SPDLOG_INFO("server_port not set");
+        SPDLOG_INFO("server_port is required");
         return false;
     }
     this->detail.server_port = portRes.value;

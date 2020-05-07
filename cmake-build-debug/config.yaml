@@ -1,7 +1,22 @@
 is_server: false
 
-server_ip_or_name: 112.74.160.183
-server_port: 1800
+ipv6: true
+
+tun:
+  if_name: auto
+  mtu: 1280
+  local_tun_ip: 192.168.192.100
+  remote_tun_ip: auto
+  local_tun_ip6: auto
+  remote_tun_ip6: auto
+
+route:
+  default_route: true
+
 conn_key: 12345678
 conn_protocol: udp
-ipv6: false
+
+server_ip_or_name: 108.61.181.1
+server_port: 1800
+
+

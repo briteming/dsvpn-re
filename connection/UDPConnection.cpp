@@ -12,11 +12,12 @@ bool UDPConnection::Connect(std::string ip_address, uint16_t port) {
     auto remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(ip_address), port);
     boost::system::error_code ec;
     this->udp_socket.open(remote_endpoint.protocol(), ec);
-    this->udp_socket.connect(remote_endpoint, ec);
-    if (ec) {
-        printf("connect failed --> %s\n", ec.message().c_str());
-        return false;
-    }
+    this->remote_send_ep = remote_endpoint;
+//    this->udp_socket.connect(remote_endpoint, ec);
+//    if (ec) {
+//        printf("connect failed --> %s\n", ec.message().c_str());
+//        return false;
+//    }
     return true;
 }
 
@@ -38,11 +39,14 @@ size_t UDPConnection::Send(boost::asio::mutable_buffer&& buffer, boost::asio::yi
     header->PADDING_LENGTH = 0;
     this->protocol.EncryptPayload(header);
     auto payload_len = this->protocol.EncryptHeader(header);
-    return this->udp_socket.async_send(boost::asio::buffer((void*)header, payload_len + ProtocolHeader::Size()), yield);
+    return this->udp_socket.async_send_to(boost::asio::buffer((void*)header, payload_len + ProtocolHeader::Size()), this->remote_send_ep, yield);
 }
 
 size_t UDPConnection::Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) {
-    this->udp_socket.async_receive(buffer, yield);
+    auto bytes_read = this->udp_socket.async_receive_from(buffer, this->last_recv_ep, yield);
+    if (this->last_recv_ep != this->remote_send_ep) {
+        return -1;
+    }
     auto header = (ProtocolHeader*)buffer.data();
     auto payload_len = this->protocol.DecryptHeader(header);
     if (payload_len == 0) return 0;

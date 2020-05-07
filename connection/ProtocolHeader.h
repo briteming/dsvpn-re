@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+// 52 bytes
+#pragma pack(8)
 struct ProtocolHeader {
 
     unsigned char NONCE[12];
@@ -20,3 +22,4 @@ struct ProtocolHeader {
     }
 
 };
+#pragma pack()

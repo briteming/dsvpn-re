@@ -4,7 +4,7 @@
 #include "../tun/TunDevice.h"
 #include <boost/asio/io_context.hpp>
 #include <boost/make_shared.hpp>
-
+#include "../connection/ProtocolHeader.h"
 enum class ConnProtocolType : int {
     UDP,
     TCP,
@@ -26,9 +26,14 @@ struct context_detail {
     std::string remote_tun_ip6 = "auto";
     std::string server_ip_or_name = "auto";
     std::string server_ip_resolved = "auto";
+
+    uint32_t mtu = 1500 - sizeof(ProtocolHeader);
+
     std::string conn_key = "12345678";
     uint16_t    server_port = 1800;
+
     ConnProtocolType conn_protocol = ConnProtocolType::UDP;
+
     bool ipv6 = false;
 };
 
@@ -36,7 +41,7 @@ class Context {
     friend class ContextHelper;
 public:
 
-    Context(boost::asio::io_context& io) : tun_device(boost::make_shared<TunDevice>(io)){}
+    Context(boost::asio::io_context& io) : tun_device(boost::make_shared<TunDevice>(io)){ }
     ~Context();
 
     bool InitByFile();
@@ -57,6 +62,7 @@ public:
     auto& ConnKey() const { return this->detail.conn_key; }
     auto& IPv6() const { return this->detail.ipv6; }
     ConnProtocolType ConnProtocol() const { return this->detail.conn_protocol; }
+    auto& MTU() const { return this->detail.mtu; }
     boost::asio::io_context& GetIO() {
         return this->tun_device->GetIO();
     }

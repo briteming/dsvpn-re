@@ -1,7 +1,7 @@
 //
 // Created by System Administrator on 2020/1/14.
 //
-
+#include "../state/Context.h"
 #include "TunDevice.h"
 #include "TunDeviceImpl.h"
 #include <boost/asio/read.hpp>
@@ -30,7 +30,7 @@ bool TunDevice::Create(const char *wanted_name) {
 }
 
 bool TunDevice::Setup(Context* context) {
-    return this->SetMTU(DEFAULT_TUN_MTU) && tun_setup(context);
+    return this->SetMTU(context->MTU()) && tun_setup(context);
 }
 
 bool TunDevice::Close(Context* context) {
@@ -56,7 +56,7 @@ bool TunDevice::SetMTU(int mtu) {
     snprintf(ifr.ifr_name, IFNAMSIZ, "%s", this->tun_name.c_str());
     if (ioctl(fd, SIOCSIFMTU, &ifr) != 0) {
         close(fd);
-        SPDLOG_INFO("TunDevice::SetMTU failed");
+        SPDLOG_INFO("TunDevice::SetMTU failed {}",this->tun_name);
         return false;
     }
     close(fd);
