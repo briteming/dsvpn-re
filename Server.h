@@ -14,7 +14,7 @@ class Server : public boost::enable_shared_from_this<Server> {
 public:
     Server(std::string client_tun_ip, uint16_t conn_port, std::string conn_key);
 
-    Server(context_detail detail);
+    Server(const boost::shared_ptr<Context>& context);
 
     ~Server();
 

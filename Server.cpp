@@ -29,6 +29,7 @@ Server::Server(std::string client_tun_ip, uint16_t conn_port, std::string conn_k
             .remote_tun_ip6 = "64:ff9b::" + std::string(client_tun_ip),
             .server_ip_or_name = "auto",
             .server_ip_resolved = "auto",
+            .mtu = 1500 - sizeof(ProtocolHeader),
             .conn_key = conn_key,
             .server_port = conn_port,
             .conn_protocol = ConnProtocolType::UDP
@@ -37,8 +38,16 @@ Server::Server(std::string client_tun_ip, uint16_t conn_port, std::string conn_k
     this->context = ContextHelper::CreateContextAtIOIndex(detail, this->io_index);
 }
 
-Server::Server(context_detail detail) {
-    this->context = ContextHelper::CreateContext(detail);
+Server::Server(const boost::shared_ptr<class Context>& context) {
+    this->context = context;
+    SPDLOG_INFO("Platform: {}", BOOST_PLATFORM);
+    SPDLOG_INFO("Server Mode");
+    SPDLOG_INFO("Connection Mode [{}]", ConnProtocolTypeToString(this->context->ConnProtocol()));
+    SPDLOG_INFO("Local TunIP: [{}] Remote TunIP: [{}]", context->LocalTunIP(), context->RemoteTunIP());
+    if (this->context->IPv6()) {
+        SPDLOG_INFO("IPv6 enabled");
+        SPDLOG_INFO("Local TunIPv6: [{}] Remote TunIPv6: [{}]", context->LocalTunIP6(), context->RemoteTunIP6());
+    }
 }
 
 Server::~Server() {
@@ -46,11 +55,14 @@ Server::~Server() {
 }
 
 void Server::Run() {
-
-    auto res = context->Init();
-    if (!res) {
-        return;
+    bool res = false;
+    if (!this->context) {
+        res = context->Init();
+        if (!res) {
+            return;
+        }
     }
+
     Shell shell;
     shell.Run("sysctl net.ipv4.ip_forward=1");
     shell.Run("sysctl net.ipv6.conf.all.forwarding=1");
@@ -82,7 +94,7 @@ void Server::Run() {
     this->connection->Spawn([self, this, connection = this->connection, context = this->context](boost::asio::yield_context yield){
         while(true) {
             boost::system::error_code ec;
-            auto bytes_read = connection->ReceiveFrom(boost::asio::buffer(connection->GetConnBuffer(), DEFAULT_TUN_MTU + ProtocolHeader::Size()), yield[ec]);
+            auto bytes_read = connection->ReceiveFrom(boost::asio::buffer(connection->GetConnBuffer(), this->context->MTU() + ProtocolHeader::Size()), yield[ec]);
             if (ec) {
                 //printf("recv err --> {}\n", ec.message().c_str());
                 return;
@@ -136,7 +148,7 @@ void Server::Run() {
     context->GetTunDevice()->Spawn([self, this, connection = this->connection](TunDevice* tun, boost::asio::yield_context& yield){
         while(true) {
             boost::system::error_code ec;
-            auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer(), DEFAULT_TUN_MTU), yield[ec]);
+            auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer(), this->context->MTU()), yield[ec]);
             if (ec) {
                 //printf("read err --> {}\n", ec.message().c_str());
                 return;
@@ -170,7 +182,7 @@ void Server::Run() {
     });
 
     Router::AddClient(context.get());
-    SPDLOG_INFO("DSVPN add client, TUN_IP: {}, ListenPort: {}, Protocol: {}",this->context->RemoteTunIP(), this->context->ServerPort(), ConnProtocolTypeToString(this->context->ConnProtocol()));
+    SPDLOG_INFO("DSVPN add client, CLIENT_TUN_IP: {}, ListenPort: {}, Protocol: {}",this->context->RemoteTunIP(), this->context->ServerPort(), ConnProtocolTypeToString(this->context->ConnProtocol()));
 
 }
 

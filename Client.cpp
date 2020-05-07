@@ -1,17 +1,8 @@
 #include "Client.h"
 #include <spdlog/spdlog.h>
-
-Client::~Client() {
-    SPDLOG_DEBUG("Client die");
-}
-
-void Client::Run() {
+Client::Client(const boost::shared_ptr<Context>& context) {
+    this->context = context;
     SPDLOG_INFO("Platform: {}", BOOST_PLATFORM);
-    this->context = boost::make_shared<Context>(IOWorker::GetInstance()->GetContextBy(0));
-    auto res = context->InitByFile();
-    if (!res) {
-        exit(-1);
-    }
     SPDLOG_INFO("Connection Mode [{}]", ConnProtocolTypeToString(this->context->ConnProtocol()));
     SPDLOG_INFO("Local TunIP: [{}] Remote TunIP: [{}]", context->LocalTunIP(), context->RemoteTunIP());
     if (this->context->IPv6()) {
@@ -20,6 +11,15 @@ void Client::Run() {
     }
 
     SPDLOG_INFO("Due to dns poisoning, you may need to setup pure dns(IPv4/v6) manually");
+
+}
+
+Client::~Client() {
+    SPDLOG_DEBUG("Client die");
+}
+
+void Client::Run() {
+    this->client_tun_ip_integer = inet_addr(this->context->LocalTunIP().c_str());
     Reconnect();
 }
 
@@ -71,15 +71,23 @@ void Client::Reconnect() {
     context->GetTunDevice()->Spawn([self, connection = this->connection, this](TunDevice* tun, boost::asio::yield_context& yield){
         while(true) {
             boost::system::error_code ec;
-            auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - TUN_PACKET_HL, DEFAULT_TUN_MTU + TUN_PACKET_HL), yield[ec]);
+            auto bytes_read = tun->Read(boost::asio::buffer(connection->GetTunBuffer() - TUN_PACKET_HL, this->context->MTU() + TUN_PACKET_HL), yield[ec]);
             if (ec) {
                 SPDLOG_DEBUG("tun read err --> {}", ec.message());
                 return;
             }
 
+            auto ip_hdr = (iphdr*)connection->GetTunBuffer();
+
             // don't tunnel none ip packet
-            if (((iphdr*)connection->GetTunBuffer())->ip_v != 4 && ((iphdr*)connection->GetTunBuffer())->ip_v != 6)
+            if (ip_hdr->ip_v != 4 && ip_hdr->ip_v != 6)
                 continue;
+
+            if (ip_hdr->ip_v == 4) {
+                if (ip_hdr->ip_src.s_addr != this->client_tun_ip_integer) {
+                    continue;
+                }
+            }
 
             // might get err if we recv icmp dst unrechable
             auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);

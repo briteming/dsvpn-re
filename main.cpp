@@ -7,6 +7,7 @@
 #include "state/Constant.h"
 #include "utils/SingleApp.h"
 
+boost::shared_ptr<Server> server = nullptr;
 boost::shared_ptr<Client> client = nullptr;
 
 void signal_handler(int signal)
@@ -17,6 +18,11 @@ void signal_handler(int signal)
         client.reset();
     }
 
+    if (server)
+    {
+        server->Stop();
+        server.reset();
+    }
 //    DestroyServer(1800);
 //    DestroyServer(1900);
 
@@ -46,10 +52,23 @@ int main() {
         return -1;
     }
 
+    auto context = boost::make_shared<class Context>(IOWorker::GetInstance()->GetContextBy(0));
+    auto initRes = context->InitByFile();
+    if (!initRes) {
+        exit(-1);
+    }
+    if (context->IsServer()) {
+        server = boost::make_shared<Server>(context);
+        server->Run();
+    }else {
+        client = boost::make_shared<Client>(context);
+        client->Run();
+    }
+
 //    CreateServer(DEFAULT_CLIENT_IP, 1800, "12345678");
 //    CreateServer("192.168.192.120", 1900, "12345678");
 
-    client = boost::make_shared<Client>();
-    client->Run();
+//    client = boost::make_shared<Client>();
+//    client->Run();
     IOWorker::GetInstance()->Run();
 }

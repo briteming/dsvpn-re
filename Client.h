@@ -19,6 +19,8 @@
 class Client : public boost::enable_shared_from_this<Client> {
 public:
 
+    Client(const boost::shared_ptr<class Context>& context);
+
     ~Client();
 
     void Run();
@@ -30,6 +32,7 @@ public:
 private:
     boost::shared_ptr<Context> context;
     boost::shared_ptr<IConnection> connection;
+    uint32_t client_tun_ip_integer;
     std::mutex connect_mutex;
     std::atomic_bool stopped = false;
     void makeConnection() {

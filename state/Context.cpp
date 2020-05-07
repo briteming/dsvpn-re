@@ -70,15 +70,8 @@ bool Context::InitByFile() {
         char local_tun_ip6[40], remote_tun_ip6[40];
         snprintf(local_tun_ip6, sizeof local_tun_ip6, "64:ff9b::%s", this->detail.local_tun_ip.c_str());
         snprintf(remote_tun_ip6, sizeof remote_tun_ip6, "64:ff9b::%s", this->detail.remote_tun_ip.c_str());
-        res = h.Parse<std::string>("tun.local_tun_ip6");
-        if (res.error || (!res.error && res.value == "auto")) {
-            this->detail.local_tun_ip6 = this->detail.is_server ? std::string(remote_tun_ip6) : std::string(local_tun_ip6);
-        }
-
-        res = h.Parse<std::string>("tun.remote_tun_ip6");
-        if (res.error || (!res.error && res.value == "auto")) {
-            this->detail.remote_tun_ip6 = this->detail.is_server ? std::string(local_tun_ip6) : std::string(remote_tun_ip6);
-        }
+        this->detail.local_tun_ip6 = std::string(local_tun_ip6);
+        this->detail.remote_tun_ip6 = std::string(remote_tun_ip6);
     }
 
     res = h.Parse<std::string>("conn_key");
@@ -132,19 +125,25 @@ bool Context::InitByFile() {
     res = h.Parse<std::string>("tun.if_name");
     if (res.error || (!res.error && res.value == "auto")) {
         this->detail.tun_if_name = DEFAULT_TUN_IFNAME;
+    }else {
+        this->detail.tun_if_name = res.value;
     }
-    this->detail.tun_if_name = res.value;
 
     auto tunRes = this->tun_device->Create(this->detail.tun_if_name.c_str());
     if (!tunRes) {
         return false;
     }
-    this->detail.tun_if_name = tun_device->GetTunName();
 
     tunRes = this->tun_device->Setup(this);
     if (!tunRes) {
         return false;
     }
+
+    if (this->detail.is_server) {
+        this->detail.ext_if_name = Router::GetDefaultInterfaceName();
+        this->detail.gateway_ip = Router::GetDefaultGatewayIp();
+    }
+
     return true;
 }
 
