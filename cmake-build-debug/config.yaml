@@ -16,7 +16,7 @@ route:
 conn_key: 12345678
 conn_protocol: udp
 
-server_ip_or_name: 108.61.181.1
+server_ip_or_name: 104.237.11.44
 server_port: 1800
 
 

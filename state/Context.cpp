@@ -134,6 +134,8 @@ bool Context::InitByFile() {
         return false;
     }
 
+    this->detail.tun_if_name = this->tun_device->GetTunName();
+
     tunRes = this->tun_device->Setup(this);
     if (!tunRes) {
         return false;

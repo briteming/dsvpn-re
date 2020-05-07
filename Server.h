@@ -43,4 +43,13 @@ bool CreateServer(std::string client_tun_ip, uint16_t conn_port, std::string con
 
 bool DestroyServer(uint16_t conn_port);
 
+#else
+class Context;
+class Server {
+public:
+    Server(const boost::shared_ptr<Context>& context){}
+    void Run(){}
+    void Stop(){}
+};
+
 #endif
