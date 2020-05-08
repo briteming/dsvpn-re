@@ -99,6 +99,10 @@ void Server::Run() {
                 //printf("recv err --> {}\n", ec.message().c_str());
                 return;
             }
+            if (bytes_read == -1) {
+                SPDLOG_DEBUG("ReceiveFrom stopped");
+                return;
+            }
             if (bytes_read == 0) {
                 SPDLOG_INFO("decrypt error");
                 continue;

@@ -1,4 +1,4 @@
-is_server: false
+is_server: true
 
 ipv6: false
 
@@ -8,15 +8,15 @@ tun:
   local_tun_ip: 192.168.192.100
   remote_tun_ip: auto
   local_tun_ip6: auto
-  remote_tun_ip6: auto
+  remote_tun_ips6: auto
 
 route:
   default_route: true
 
 conn_key: 12345678
-conn_protocol: udp
+conn_protocol: tcp
 
-server_ip_or_name: 108.21.112.76
+server_ip_or_name: 104.237.11.44
 server_port: 1800
 
 

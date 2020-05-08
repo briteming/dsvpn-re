@@ -13,6 +13,7 @@ public:
 
     IConnection(boost::asio::io_context& io, std::string conn_key) : io_context(io), protocol(conn_key) {}
 
+    // blocking is allowed. for instance, the Connect op for tcp or utcp could block
     virtual bool Connect(std::string ip_address, uint16_t port) = 0;
 
     virtual bool Bind(std::string ip_address, uint16_t port) = 0;
@@ -28,8 +29,12 @@ public:
     // the IP Dst is guaranteed to be LOCAL_TUN_IP/(6) by the server
     virtual size_t Receive(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
+    // send data to client, for server only
     virtual size_t SendTo(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
+    // recv data from client, for server only
+    // return 0 if decrypt error
+    // return -1 if conn error
     virtual size_t ReceiveFrom(boost::asio::mutable_buffer&& buffer, boost::asio::yield_context&& yield) = 0;
 
     template <class FunctionType>

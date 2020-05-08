@@ -9,23 +9,19 @@
 class TCPConnection : public IConnection {
 public:
 
-    TCPConnection(boost::asio::io_context &io, std::string conn_key) : IConnection(io, conn_key), tcp_acceptor(io), tcp_socket(io), chosen_socket_signal(io) {
+    TCPConnection(boost::asio::io_context &io, std::string conn_key) : IConnection(io, conn_key), tcp_acceptor(io), tcp_socket(io), selected_signal(io) {
 
     }
 
     virtual bool Connect(std::string ip_address, uint16_t port) override {
-        if (connecting) return true;
-        connecting = true;
         auto remote_endpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(ip_address), port);
         boost::system::error_code ec;
         this->conn_socket = boost::make_shared<boost::asio::ip::tcp::socket>(this->io_context);
         this->conn_socket->open(remote_endpoint.protocol(), ec);
         this->conn_socket->connect(remote_endpoint, ec);
-        connecting = false;
         if (ec) {
             return false;
         }
-        this->chosen_socket_signal.cancel();
         return true;
     }
 
@@ -43,9 +39,8 @@ public:
         return true;
     }
 
+    // we might accept non vpn conn, we accept all of them and check it one by one in tryReceive
     void Accept() override {
-        if (this->accepting) return;
-        this->accepting = true;
         auto self(this->shared_from_this());
         boost::asio::spawn(this->io_context, [self, this](boost::asio::yield_context yield){
             while(true) {
@@ -54,15 +49,14 @@ public:
                 this->tcp_acceptor.async_accept(*conn_socket, yield[ec]);
                 if (ec) {
                     printf("async_accept err --> %s\n", ec.message().c_str());
-                    continue;
+                    return;
                 }
-                this->accepting = false;
                 tryReceive(conn_socket);
             }
         });
     }
 
-    void tryReceive(boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket) {
+    void tryReceive(const boost::shared_ptr<boost::asio::ip::tcp::socket>& conn_socket) {
         auto self(this->shared_from_this());
         boost::asio::spawn(this->io_context, [self, this, conn_socket](boost::asio::yield_context yield){
             ProtocolHeader * header;
@@ -84,16 +78,23 @@ public:
             // if we can decode the payload successfully, the conn_socket is chosen
             if (this->protocol.DecryptPayload(header)) {}
             printf("client dsvpn%d connection from %s:%d\n", this->tcp_acceptor.local_endpoint().port(), conn_socket->remote_endpoint().address().to_string().c_str(), conn_socket->remote_endpoint().port());
-            if (this->conn_socket) {
-                // close the old socket
-                this->conn_socket->close();
-                this->conn_socket.reset();
+
+            // we are not going to replace the old one
+//            if (this->conn_socket) {
+//                // close the old socket
+//                this->conn_socket->close();
+//                this->conn_socket.reset();
+//            }
+            if (!selected) {
+                selected = true;
+                this->conn_socket = conn_socket;
+                // notify the ReceiveFrom
+                this->selected_signal.cancel();
             }
-            this->conn_socket_pending = conn_socket;
-            this->chosen_socket_signal.cancel();
         });
     }
 
+    // for client, Send is called only when the conn is established.
     virtual size_t Send(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
         auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::Size());
         header->PAYLOAD_LENGTH = buffer.size();
@@ -106,13 +107,9 @@ public:
         return bytes_send;
     }
 
+    // for client, Receive is called only when the conn is established.
     virtual size_t Receive(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
 
-        if (connecting) {
-            // sleep if socket connecting
-            this->chosen_socket_signal.expires_from_now(boost::posix_time::pos_infin);
-            this->chosen_socket_signal.async_wait(yield);
-        }
         ProtocolHeader * header;
         size_t payload_len;
         size_t bytes_read;
@@ -134,27 +131,45 @@ public:
 
     // send to the last received ep
     // if conn never ReceiveFrom packet before, the sendto will fail
+    // return -1 if stopped
     virtual size_t SendTo(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
-        if (!conn_socket) return 0;
+        // if no conn is selected, we drop the packet with no error
+        if (!selected) return 0;
         auto header = (ProtocolHeader *) (this->GetTunBuffer() - ProtocolHeader::Size());
         header->PAYLOAD_LENGTH = buffer.size();
         header->PADDING_LENGTH = 0;
         this->protocol.EncryptPayload(header);
         auto payload_len = this->protocol.EncryptHeader(header);
-        return boost::asio::async_write(*this->conn_socket, boost::asio::buffer((void *) header, payload_len + ProtocolHeader::Size()), yield);
+        auto bytes_send = boost::asio::async_write(*this->conn_socket, boost::asio::buffer((void *) header, payload_len + ProtocolHeader::Size()), yield);
+        if (this->stopped) {
+            yield.ec_->clear();
+            return -1;
+        }
+        // if something goes wrong with write
+        // set flag and notify async_read let it closes the socket
+        if (*yield.ec_) {
+            boost::system::error_code ec;
+            this->conn_socket->cancel(ec);
+            this->selected = false;
+            yield.ec_->clear();
+            return 0;
+        }
+        return bytes_send;
     }
 
+    // we don't have decrypt err in tcp
+    // return -1 if stopped
+    // return + if packet could be decrypted
+    // if err, we just retry
     virtual size_t ReceiveFrom(boost::asio::mutable_buffer &&buffer, boost::asio::yield_context &&yield) override {
         while (true) {
-            while (!conn_socket) {
-                if (conn_socket_pending) {
-                    this->conn_socket.swap(this->conn_socket_pending);
-                    break;
-                }
-                // sleep if there's no conn_socket available
-                this->chosen_socket_signal.expires_from_now(boost::posix_time::pos_infin);
-                this->chosen_socket_signal.async_wait(yield);
+            // we sleep where there's no selected conn socket
+            // no data race here cause all callback runs in same io_context with only 1 thread
+            while (!selected) {
+                this->selected_signal.expires_from_now(boost::posix_time::pos_infin);
+                this->selected_signal.async_wait(yield);
             }
+            // as long as selected_signal return , a valid conn is set
 
             ProtocolHeader * header;
             size_t payload_len;
@@ -162,9 +177,21 @@ public:
 
             bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
                     this->GetConnBuffer(), ProtocolHeader::Size()), yield);
+            // if we lost conn with the select socket, we close the conn
+            if (*yield.ec_) {
+                // if Close is called, stopped would be set to true
+                if (this->stopped) {
+                    return -1;
+                }
+                boost::system::error_code ec;
+                this->conn_socket->close(ec);
+                this->conn_socket.reset();
+                this->selected = false;
+                continue;
+            }
+
             if (bytes_read == 0) continue;
-            //recheck chosen socket
-            if (!this->conn_socket) continue;
+
             header = (ProtocolHeader *) this->GetConnBuffer();
             payload_len = this->protocol.DecryptHeader(header);
             if (payload_len == 0) continue;
@@ -178,10 +205,15 @@ public:
     virtual void Close() override {
         auto self(this->shared_from_this());
         boost::asio::spawn(this->io_context, [self, this](boost::asio::yield_context yield) {
+            this->tcp_acceptor.close();
             if (this->async_tasks_running > 0) {
-                this->chosen_socket_signal.cancel();
-                if (this->conn_socket)
-                    this->conn_socket->close();
+                if (this->selected) {
+                    boost::system::error_code ec;
+                    this->conn_socket->close(ec);
+                    this->conn_socket.reset();
+                    this->selected = false;
+                    this->stopped = true;
+                }
             }
         });
     }
@@ -191,8 +223,9 @@ private:
     boost::asio::ip::tcp::acceptor tcp_acceptor;
     boost::asio::ip::tcp::socket tcp_socket;
     boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket;
-    boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket_pending;
-    boost::asio::deadline_timer chosen_socket_signal;
-    std::atomic_bool accepting = false;
-    std::atomic_bool connecting = false;
+    boost::asio::deadline_timer selected_signal;
+
+    // indicate whether there is a valid conn already
+    std::atomic_bool stopped = false;
+    std::atomic_bool selected = false;
 };
