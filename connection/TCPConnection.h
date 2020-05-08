@@ -127,7 +127,7 @@ public:
         payload_len = this->protocol.DecryptHeader(header);
         if (payload_len == 0) return 0;
         bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
-                this->GetConnBuffer() + ProtocolHeader::Size(), header->PAYLOAD_LENGTH), yield);
+                this->GetConnBuffer() + ProtocolHeader::Size(), payload_len), yield);
         if (bytes_read == 0) return 0;
         if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
         return 0;
