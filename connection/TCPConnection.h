@@ -73,7 +73,7 @@ public:
             payload_len = this->protocol.DecryptHeader(header);
             if (payload_len == 0) return;
             bytes_read = boost::asio::async_read(*conn_socket, boost::asio::buffer(
-                    this->GetConnBuffer() + ProtocolHeader::Size(), header->PAYLOAD_LENGTH), yield);
+                    this->GetConnBuffer() + ProtocolHeader::Size(), payload_len), yield);
             if (bytes_read == 0) return;
             // if we can decode the payload successfully, the conn_socket is chosen
             if (this->protocol.DecryptPayload(header)) {}
@@ -90,6 +90,10 @@ public:
                 this->conn_socket = conn_socket;
                 // notify the ReceiveFrom
                 this->selected_signal.cancel();
+            }else {
+                // if conn already exist, we need to replace it
+                this->replace_socket = conn_socket;
+                this->conn_socket->cancel();
             }
         });
     }
@@ -178,6 +182,7 @@ public:
             bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
                     this->GetConnBuffer(), ProtocolHeader::Size()), yield);
             // if we lost conn with the select socket, we close the conn
+//            printf("read %zu bytes\n", bytes_read);
             if (*yield.ec_) {
                 // if Close is called, stopped would be set to true
                 if (this->stopped) {
@@ -187,6 +192,12 @@ public:
                 this->conn_socket->close(ec);
                 this->conn_socket.reset();
                 this->selected = false;
+
+                if (this->replace_socket) {
+                    this->conn_socket.swap(this->replace_socket);
+                    this->selected = true;
+                }
+
                 continue;
             }
 
@@ -196,7 +207,7 @@ public:
             payload_len = this->protocol.DecryptHeader(header);
             if (payload_len == 0) continue;
             bytes_read = boost::asio::async_read(*this->conn_socket, boost::asio::buffer(
-                    this->GetConnBuffer() + ProtocolHeader::Size(), header->PAYLOAD_LENGTH), yield);
+                    this->GetConnBuffer() + ProtocolHeader::Size(), payload_len), yield);
             if (bytes_read == 0) continue;
             if (this->protocol.DecryptPayload(header)) return header->PAYLOAD_LENGTH;
         }
@@ -223,6 +234,7 @@ private:
     boost::asio::ip::tcp::acceptor tcp_acceptor;
     boost::asio::ip::tcp::socket tcp_socket;
     boost::shared_ptr<boost::asio::ip::tcp::socket> conn_socket;
+    boost::shared_ptr<boost::asio::ip::tcp::socket> replace_socket;
     boost::asio::deadline_timer selected_signal;
 
     // indicate whether there is a valid conn already
