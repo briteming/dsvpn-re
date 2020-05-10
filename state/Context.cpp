@@ -129,6 +129,10 @@ bool Context::InitByFile() {
         this->detail.tun_if_name = res.value;
     }
 
+    if (this->IsServer()) {
+        this->detail.tun_if_name += std::to_string(this->detail.server_port);
+    }
+
     auto tunRes = this->tun_device->Create(this->detail.tun_if_name.c_str());
     if (!tunRes) {
         return false;

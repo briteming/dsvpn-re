@@ -89,6 +89,10 @@ void Client::Reconnect() {
                 }
             }
 
+            if (ip_hdr->ip_v == 6 && !this->context->IPv6()) {
+                continue;
+            }
+
             // might get err if we recv icmp dst unrechable
             auto bytes_send = connection->Send(boost::asio::buffer(connection->GetTunBuffer(), bytes_read - TUN_PACKET_HL), yield[ec]);
             if (ec) {
